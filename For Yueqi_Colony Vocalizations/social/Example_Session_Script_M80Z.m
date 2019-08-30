@@ -1,0 +1,193 @@
+%% Example script to analyze vocal behavior recorded from a parabolic/reference pair of microphones.
+
+% ---------train the frame-classification SVM model---------
+% run('social.vad.Training_Script.m'); 
+% 
+% ---------train the class type classification HMM model---------
+% run('social.vad.Training_Script_classify.m');
+
+%----------build sessions-----------
+%   A session can have several behaviors, each behavior can be independently used to find calls. There are two types of behaviors. One is
+%   'ColonyParRefChannel', the other is 'ColonyWirelessChannel'.  
+%  
+%   'ColonyParRefChannel' should be used when there is one parabolic mic, one reference mic, and zero to several other reference mics.
+%       invocation: behavior = social.behavior.('ColonyParRefChannel')(session,sessionName,sigPar,sigRef,sigOth,false,param);
+%           session: the object of session, StandardSession
+%           sessionNum: the session name, String
+%           sigPar: the object of parabolic mic signal, StandardVocalSignal Object
+%           sigRef: the object of reference mic signal, StandardVocalSignal Object
+%           sigOth: a cell of objects, each one is a other-reference mic signal, StandardVocalSignal Object
+%           false: logical variable
+%           param: parameter object, Param Object
+%
+%   'ColonyWirelessChannel' should be used when there is one parabolic mic, one reference mic, and two to several wireless mics.
+%       invocation: behavior = social.behavior.('ColonyWirelessChannel')(session,sessionName,sigPar,sigRef,sigWireless,false,param);
+%           session: the object of session, StandardSession
+%           sessionNum: the session name, String
+%           sigPar: the object of parabolic mic signal, StandardVocalSignal Object
+%           sigRef: the object of reference mic signal, StandardVocalSignal Object
+%           sigWireless: a cell of objects, each one is a wireless mic signal, StandardVocalSignal Object
+%           false: logical variable
+%           param: parameter object, Param Object
+% ----------------------------------
+
+prefix      =   'voc';
+% subject     =   'M91C_M92C_M64A_M29A';
+% subject     =   '9606';
+subject     =   'M80Z';
+% sessionNums = {'S189', 'S193', 'S194', 'S198', 'S200', 'S201', 'S203', 'S204', 'S205', 'S207', 'S208', 'S210', 'S211', 'S213'};
+% sessionNums = {'S141', 'S142', 'S143', 'S145', 'S147', 'S151', 'S152', 'S154', 'S156', 'S161', 'S162', 'S164', 'S165', 'S169', 'S171', 'S173'};
+% ses_num = [37,40:42,46,49,53:56,63,69:71,74,76:80,83:89,91:94,96,98:100,107:110,...
+%             119,132,134:137,143:146,148,151:153,158:161];
+% ses_num = [37,40:42,46,49,53:56,63,69:71,74,76:80,83:89,91:94,96,98:100,107:110,...
+%             119,132,134:137,143:146,148,151:153,158:161,65:57,102:105,116:118,121:124,127:130];
+% ses_num = 191;
+% ses_num = [209:212,214:218,220:224,226:230,232:236,238,239,241,242];
+ses_num = [203:207,209:212,214:218,220:224,226:230,232:236,238:242];
+
+sessionNums = [];
+
+for jj = 1:length(ses_num)
+    sessionNums{jj} = ['c_S' num2str(ses_num(jj))];
+end
+% sessionNums = {'c_S134','c_S135','c_S136','c_S137','c_S143',...
+%                 'c_S144','c_S145','c_S146','c_S151','c_S152','c_S153','c_S158','c_S159','c_S160','c_S161'};
+% sessionNums = {'S189'};
+len_sessionNums = length(sessionNums);
+% len_sessionNums = 1;
+
+if strcmp(subject,'9606')
+    subject_pname = 'M9606';
+    subject_fname = '9606';
+    subject_name = 'M9606';
+elseif strcmp(subject,'M80Z')
+    subject_pname = 'M93A';
+    subject_fname = 'M93A';
+    subject_name = 'M80Z';
+else
+    subject_fname = subject;
+    subject_pname = subject;
+    subject_name = subject;
+end
+for i = 1  : len_sessionNums
+    sessionNum = sessionNums{i};
+    %----------load parameters---------
+    param       =   social.vad.tools.Param(subject);
+    %----------new a session----------
+    f           =   [prefix,'_',subject_fname,'_',sessionNum,'.hdr'];
+    filename    =   fullfile(param.soundFilePath,subject_pname,f);
+    session     =   social.session.StandardSession(filename);
+    sessionName = [prefix,'_',subject,'_',sessionNum];
+    
+%     %-----------------------------------
+%     % example: 80Z
+%     %-----------------------------------
+    sigPar = session.Signals(3);
+    sigRef = session.Signals(2);
+%     sigOth = {};
+    sigOth{1} = session.Signals(1);
+    
+    temp = social.behavior.('ColonyParRefChannel')(session,subject_name,sigPar,sigRef,sigOth,false,param);
+    session.Behaviors = temp;
+
+
+
+%     % -----------------------------------
+%     % example: 4M, condition 3,4,5
+%     % -----------------------------------
+%     behChnPar = [1,2,3,4];
+%     behChnRef = [2,3,4,1];
+%     behChnOth = [3,4,1,2;4,1,2,3];
+%     for iBeh = 1 : length(behChnPar)
+%         sigPar = session.Signals(behChnPar(iBeh));
+%         sigRef = session.Signals(behChnRef(iBeh));
+%         sigOth = {};
+%         for ic = 1 : size(behChnOth,1)
+%             sigOth{ic} = session.Signals(behChnOth(ic, iBeh));
+%         end
+%         temp = social.behavior.('ColonyParRefChannel')(session,sessionName,sigPar,sigRef,sigOth,false,param);
+%         if isempty(session.Behaviors)
+%             session.Behaviors = temp;
+%         else
+%             session.Behaviors(end+1) = temp;
+%         end
+%     end
+    
+
+    %-------------------
+    % example: 4M, condition 6 
+    %-------------------
+    % wireless
+%     sigPar = session.Signals(3);
+%     sigRef = session.Signals(1);
+%     sigWireless{1} = session.Signals(5);
+%     sigWireless{2} = session.Signals(6);
+%     temp = social.behavior.('ColonyWirelessChannel')(session,sessionName,sigPar,sigRef,sigWireless,false,param);
+%     if isempty(session.Behaviors)
+%         session.Behaviors = temp;
+%     else
+%         session.Behaviors(end+1) = temp;
+%     end
+%     % par-ref
+%     sigPar = session.Signals(1);
+%     sigRef = session.Signals(4);
+%     sigOth{1} = session.Signals(2);
+%     sigOth{2} = session.Signals(3);
+%     temp = social.behavior.('ColonyParRefChannel')(session,sessionName,sigPar,sigRef,sigOth,false,param);
+%     if isempty(session.Behaviors)
+%         session.Behaviors = temp;
+%     else
+%         session.Behaviors(end + 1) = temp;
+%     end
+% 
+%     % par-ref 
+%     sigPar = session.Signals(2);
+%     sigRef = session.Signals(4);
+%     sigOth{1} = session.Signals(1);
+%     sigOth{2} = session.Signals(3);
+%     temp = social.behavior.('ColonyParRefChannel')(session,sessionName,sigPar,sigRef,sigOth,false,param);
+%     if isempty(session.Behaviors)
+%         session.Behaviors = temp;
+%     else
+%         session.Behaviors(end + 1) = temp;
+%     end
+
+    %-------------------
+    % example: 4M, condition 7
+    %-------------------
+    
+    % wireless
+%     sigPar = session.Signals(1);
+%     sigRef = session.Signals(2);
+%     sigWireless{1} = session.Signals(4);
+%     sigWireless{2} = session.Signals(5);
+%     temp = social.behavior.('ColonyWirelessChannel')(session,sessionName,sigPar,sigRef,sigWireless,false,param);
+%     if isempty(session.Behaviors)
+%         session.Behaviors = temp;
+%     else
+%         session.Behaviors(end+1) = temp;
+%     end
+    
+    % par-ref
+%     sigPar = session.Signals(2);
+%     sigRef = session.Signals(3);
+%     sigOth{1} = session.Signals(1);
+%     temp = social.behavior.('ColonyParRefChannel')(session,sessionName,sigPar,sigRef,sigOth,false,param);
+%     if isempty(session.Behaviors)
+%         session.Behaviors = temp;
+%     else
+%         session.Behaviors(end + 1) = temp;
+%     end
+
+    % start detection
+    tic
+    session.DetectAllEvents; 
+    toc
+    session.saveSession(param.dataFolder);
+
+    % mat file to selection table
+    subject = subject_fname;
+    run('social.vad.tools.Calls_MAT2Table.m');
+
+end
+
