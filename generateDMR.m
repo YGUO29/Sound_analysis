@@ -25,53 +25,56 @@ S.M             = 45; % modulation depth of the envolope
 
 % ===== frequency related parameters =====
 % carrier frequencies
-S.f0            = 880;    % base frequency in Hz 
+S.f0            = 440;    % base frequency in Hz 
 S.nCarriersOct  = 43;      % number of carrier freqq. per octave, Escabi and Schreiner used 230 carriers over 5.32 octaves (0.5 - 20kHz)
-S.nOctaves      = 4;    % A4~A10 (440Hz~28kHz)
+S.nOctaves      = 6;    % A4~A10 (440Hz~28kHz)
 vCarrierFreq    = S.f0 * 2.^linspace(0, S.nOctaves, S.nCarriersOct * S.nOctaves+1)';
-S.f1            = S.f0 * 2^2;
+S.f1            = S.f0 * 2^3;
 vLogFreq        = log2(vCarrierFreq./S.f1);
 
 %  modulation rates
-S.mod_type      = 'LogFm_LogTm';
-S.fm_period     = 437; 
-S.tm_period     = 23;
-S.dur           = lcm(S.fm_period, S.tm_period); % least common multiplier
+S.sm_pattern    = 'CosLog';
+S.tm_pattern    = 'CosLog';
+S.sm_period     = 23; 
+S.tm_period     = 19;
+S.sm_range      = [1/8, 8];
+S.tm_range      = [32, -32].*2*pi;
+
+S.dur           = lcm(S.sm_period, S.tm_period); % least common multiplier
 S.t             = 0: 1/S.fs :S.dur - 1/S.fs;
 
-S.fm_cycles     = S.dur/S.fm_period;
+S.sm_cycles     = S.dur/S.sm_period;
 S.tm_cycles     = S.dur/S.tm_period;
-S.fm_range      = [1/8, 8];
-S.tm_range      = [-32, 32].*2*pi;
+
 
 % ====== log scan =====
-fm1             = logspace(log10(S.fm_range(1)),log10(S.fm_range(2)),floor(S.fm_period.*S.fs./2)); % log scan, up and down
-S.fm            = [fliplr(fm1), fm1]; 
-S.fm            = repmat(S.fm, 1, S.fm_cycles);
-S.tm            = logspace(log10(1/2), log10(S.tm_range(2)), floor(S.tm_period.*S.fs/2));
-S.tm            = [-fliplr(S.tm),S.tm];
-S.tm            = repmat(S.tm, 1, S.tm_cycles);
+% sm1             = logspace(log10(S.sm_range(1)),log10(S.sm_range(2)),floor(S.sm_period.*S.fs./2)); % log scan, up and down
+% S.sm            = [fliplr(sm1), sm1]; 
+% S.sm            = repmat(S.sm, 1, S.sm_cycles);
+% S.tm            = logspace(log10(S.tm_range(1)), log10(1/2), floor(S.tm_period.*S.fs/2));
+% S.tm            = [S.tm, -fliplr(S.tm)];
+% S.tm            = repmat(S.tm, 1, S.tm_cycles);
 
 % S.tm            = interp1([1, S.tm_period*S.fs], S.tm_range, 1:S.tm_period*S.fs); % linear scan
 % S.tm            = repmat(S.tm, 1, S.tm_cycles);
 % ======================
 
 % ====== sine scan =====
-% S.fm            = (sin(2*pi*(1/S.fm_period)*S.t) + 1)./2; % sine scan
-% S.fm            = S.fm_range(1) + S.fm.*(S.fm_range(2) - S.fm_range(1)); % normalize to proper range
+% S.sm            = (sin(2*pi*(1/S.sm_period)*S.t) + 1)./2; % sine scan
+% S.sm            = S.sm_range(1) + S.sm.*(S.sm_range(2) - S.sm_range(1)); % normalize to proper range
 % S.tm            = (sin(2*pi*(1/S.tm_period)*S.t) + 1)./2; % cycles per octave
 % S.tm            = S.tm_range(1) + S.tm.*(S.tm_range(2) - S.tm_range(1)); % normalize to proper range
-% ====== "exponential sine" scan ===
+% ====== "exponential sine/cosine" scan ===
 % this method emphasize the low modulation frequencies while maintaining
 % continuity at the maxima points
-% x1              = sin(2*pi*(1/S.fm_period)*S.t); % sine scan
-% S.fm            = 2.^(3.*x1); % range = 1/8 - 8
-% x1              = sin(2*pi*(1/S.tm_period)*S.t);
-% S.tm            = (2.^(3.*x1+2)).*(2*pi);
+x1              = cos(2*pi*(1/S.sm_period)*S.t); % sine scan
+S.sm            = 2.^(3.*x1); % range = 1/8 - 8
+x1              = cos(2*pi*(1/S.tm_period)*S.t);
+S.tm            = (2.^(3.*x1+2)).*(2*pi); % range = 1/2 - 32
 % ======================
 
-% S.fm            = repmat([1/8, 1/4, 1/2, 1, 2, 4, 8],round(S.fs*S.tm_period/2),1);
-% S.fm            = reshape(S.fm,1,size(S.fm,1)*size(S.fm,2));
+% S.sm            = repmat([1/8, 1/4, 1/2, 1, 2, 4, 8],round(S.fs*S.tm_period/2),1);
+% S.sm            = reshape(S.sm,1,size(S.sm,1)*size(S.sm,2));
 % S.tm            = 2.*ones(size(S.t)); 
 
 
@@ -80,7 +83,7 @@ S.tm            = repmat(S.tm, 1, S.tm_cycles);
 vPhi = rand([1,size(vCarrierFreq,1)])*2*pi; % random phase for carrier signal
 S.wav = zeros(size(S.t));
 
-Omega   = S.fm;
+Omega   = S.sm;
 Phi     = cumsum(S.tm)./S.fs;
 % plot some traces to verify the actural sound features
 nPoints     = 3*S.fs*19;
@@ -102,10 +105,18 @@ for i = 1:length(vCarrierFreq)
 end
 S.wav = S.wav./max(abs(S.wav));
 
+%%
+figure('DefaultAxesFontSize',18, 'DefaultLineLineWidth', 2,'color','w','Position',[1440 200 900 900]);
+subplot(3,1,1),plot(S.t, S.sm),title('spectral modulation rate (cycles/octave)'), yticks(S.sm_range), yticklabels({'1/8', '8'}), xlim([S.t(1), S.t(end)])
+subplot(3,1,2),plot(S.t, S.tm./(2*pi)),title('temporal modulation rate (cycles/second)'), yticks([min(S.tm./(2*pi)), max(S.tm./(2*pi))]), yticklabels({'1/2', '32'}), xlim([S.t(1), S.t(end)])
+subplot(3,1,3),imagesc([5*S.fs:17*S.fs]./S.fs, vCarrierFreq/1000, flipud(test_env(:,5*S.fs:17*S.fs))), 
+xlabel('Time(s)'), ylabel ('Frequency (kHz)'), yticklabels({'25' '20' '15' '10' '5'}); title('Example spectrogram')
+
 figure,
-subplot(3,1,1),plot(S.t, S.fm),title('frequency modulation rate (cycles/octave)')
-subplot(3,1,2),plot(S.t, S.tm./(2*pi)),title('temporal modulation rate (cycles/second)')
 subplot(3,1,3),plot(S.t, S.wav),title('Signal temporal trace')
+
+figure,
+loglog(S.tm, S.sm)
 %% check the signal
 [ind,~] = find(vLogFreq == -3:3);
 
@@ -118,15 +129,14 @@ xlabel('time(s)'),
 ylabel('temporal modulation rates')
 % MaxDifference = 
 
-%%f
-player = audioplayer(S.wav,S.fs);
-play(player)
 %%
-filename = ['D:\=sounds=\DMR\2019-8-27\DRM_',num2str(S.dur),'sec_', num2str(S.fm_period),'fm_', num2str(S.tm_period),'tm_',S.mod_type,'_',num2str(S.nCarriersOct),'carriers_A5-A9_f1=A7'];
+filename = ['D:\=sounds=\DMR\2019-9-20\DMR_',num2str(S.dur),'s_(SM@', num2str(S.sm_period),'s(',S.sm_pattern,num2str(S.sm_range(1),'%.3f'),'~',num2str(S.sm_range(2),'%.3f'),'cycPoct)_'...
+    'TM@', num2str(S.tm_period),'s(',S.tm_pattern,num2str(S.tm_range(1)./(2*pi),'%.1f'),'~',num2str(S.tm_range(2)./(2*pi),'%.1f'),'Hz)_',...
+    num2str(S.nCarriersOct),'x',num2str(S.nOctaves),'carriers@A4~A10&f1=A7'];
 save(filename,'S');
 audiowrite([filename,'.wav'],S.wav,S.fs);
 %% plot spectrogram and cochleagram
-S.wav = wav_origin(1:floor(S.fm_period*S.fs));
+S.wav = wav_origin(1:floor(S.sm_period*S.fs));
 plotON = 1; 
 figure,
 [ftx] = getSpectrogram(S,plotON,0.02);

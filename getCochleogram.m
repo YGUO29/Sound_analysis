@@ -149,14 +149,25 @@ if plotON
     imagesc(Mat_env_ds)
 %     imagesc(MatdB)
     colorbar, axis('xy'), 
-    t_ind = []; ts = [0.5,1,1.5];
+    dur = length(Sd.wav)/Sd.fs;
+    t_ind = []; t_labels =cell(0);
+    ts = dur.*[1/4,1/2,3/4];
     for k = 1:length(ts)
         [~,t_ind(k)] = min( abs(t_ds-ts(k)) );
+        t_labels{k} = num2str(ts(k), '%.1f');
     end
     set(gca,'xtick',t_ind)
-    set(gca,'xticklabels',arrayfun(@num2str,ts,'UniformOutput',false),'fontsize',10)
-    xlabel('Time, s','fontsize',10);  
-    title(['Cochleagram, ',mode,', ',strrep(Sd.SoundName, '_', '-')],'fontsize',10)
+    set(gca,'xticklabels',t_labels,'fontsize',20)
+    xlabel('Time, s','fontsize',20);  
+%     xtickformat('%.1f');
+%     title(['Cochleagram, ',mode,', ',strrep(Sd.SoundName, '_', '-')],'fontsize',10)
+    if isfield(Sd, 'SoundName')
+        Sd.SoundNameSimple      = strsplit(Sd.SoundName,'_');
+        Sd.SoundNameSimple      = Sd.SoundNameSimple(2:end);
+        Sd.SoundNameSimple{end} = Sd.SoundNameSimple{end}(1:end-4);
+        title(strjoin(Sd.SoundNameSimple,'-'),'fontsize',20)
+    end
+    
     switch mode
     % label some frequencies for linear mode
         case 'linear'
@@ -168,7 +179,8 @@ if plotON
   
     % label some frequencies for ERB mode
         case 'ERB'
-        freqs = floor([440*2.^([1:5]), max(cf)]./10).*10; % the index of 10
+%         freqs = floor([440*2.^([1:5]), max(cf)]./10).*10; % the index of 10
+        freqs = floor(440*2.^(1:5)./10).*10; % the index of 10
         
         otherwise
             disp('mode: linear, log or ERB')
@@ -179,8 +191,8 @@ if plotON
         [~,y_ind(k)] = min( abs(cf-freqs(k)) );
     end
     set(gca,'ytick',y_ind)
-    set(gca,'yticklabels',arrayfun(@num2str,freqs./1000,'UniformOutput',false),'fontsize',10)
-    ylabel('Frequency, kHz','fontsize',10); colorbar 
+    set(gca,'yticklabels',arrayfun(@num2str,freqs./1000,'UniformOutput',false),'fontsize',20)
+    ylabel('Frequency, kHz','fontsize',20); colorbar 
           
 end
 

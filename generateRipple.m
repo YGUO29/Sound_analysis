@@ -4,7 +4,7 @@
 
 % stimulus overall parameters
 S.fs            = 1e5; % sampling rate
-S.dur           = 2; % seconds
+S.dur           = 6; % seconds
 S.t             = 1/S.fs: 1/S.fs :S.dur;
 S.M             = 45; % modulation depth of the envolope
 
@@ -18,10 +18,10 @@ vCarrierFreq    = S.f0 * 2.^linspace(0, S.nOctaves, S.nCarriersOct * S.nOctaves+
 vLogFreq        = log2(vCarrierFreq./S.f0);
 
 %  modulation rates
-% S.fm            = [0, 1/8, 1/4, 1/2, 1, 2, 4, 8];
-% S.tm            = -[32, 16, 8, 4, 2, 1, 1/2];
-S.fm            = [0, 1/4, 1/2, 1, 2, 4];
-S.tm            = [0, 2, 4, 8, 16, 32];
+% S.tm            = [-1, -1/2, 1/2, 1];
+S.fm            = [0, 1/8, 1/4, 1/2, 1, 2, 4, 8];
+S.tm            = [1/2, 1, 2, 4, 8, 16, 32, 64];
+S.tm            = [fliplr(-S.tm), 0, S.tm]; % all frequencies
 % S.tm            = [S.tm, 0, fliplr(-S.tm)];
 S.nFm           = length(S.fm);
 S.nTm           = length(S.tm);
@@ -40,13 +40,14 @@ ind2             = length(S.ramp_env)+1-floor(S.ramp_time*S.fs):length(S.ramp_en
 S.ramp_env(ind2) = sin(2*pi/(4*S.ramp_time).*S.t(ind1) + pi/2);
 
 
-figure, size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
+% figure, size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
 
 for m = 1:S.nFm
     Omega   = S.fm(m);
     
     for n = 1:S.nTm
     Phi     = S.tm(n);
+    S.wav           = zeros(size(S.t));
 
     for i = 1:length(vCarrierFreq)
         x       = vLogFreq(i);
@@ -61,16 +62,18 @@ for m = 1:S.nFm
     S.wav = S.wav./max(abs(S.wav));
     S.wav = S.wav.*S.ramp_env;
 
-    filename = ['Ripple_',num2str(S.nCarriersOct),'carriers=A5-A9_f1=A4_',num2str(S.dur),'sec_FM', num2str(Omega, '%4.2f'), '_TM',num2str(Phi, '%4.2f')];
+    filename = ['D:\=sounds=\Ripple\Sound_Ripple_6s_43carriers(A5-A9)_F0(A5)_FM(0~8)cycpoct_TM(-64~64)Hz\', ...
+        'Ripple_6s_',num2str(S.nCarriersOct),'carriers=A5-A9_f1=A4_',num2str(S.dur),'sec_FM', num2str(Omega, '%4.2f'), '_TM',num2str(Phi, '%4.2f')];
     save([filename,'.mat'],'S');
     audiowrite([filename,'.wav'],S.wav,S.fs);
-    subplot( S.nFm, S.nTm, sub2ind([S.nTm, S.nFm], n, m) ),
-        imagesc(S.t, [], flipud(Env_db)), colormap(jet)
-        xlabel('time(s)'), ylabel('octave number')
-        title(['FM=', num2str(Omega), ', TM=',num2str(Phi)])
-        set(gca, 'Xtick', [0:0.5:S.dur]), 
-        set(gca, 'Ytick', 1:S.nCarriersOct:length(vLogFreq))
-        set(gca, 'YtickLabel',arrayfun(@num2str,flipud(vLogFreq(1:S.nCarriersOct:length(vLogFreq))),'UniformOutput',false))
+%     subplot( S.nFm, S.nTm, sub2ind([S.nTm, S.nFm], n, m) ),
+%         imagesc(S.t, [], flipud(Env_db)), colormap(jet)
+%         xlabel('time(s)'), ylabel('octave number')
+%         title(['FM=', num2str(Omega), ', TM=',num2str(Phi)])
+%         set(gca, 'Xtick', [0:0.5:S.dur]), 
+%         set(gca, 'Ytick', 1:S.nCarriersOct:length(vLogFreq))
+%         set(gca, 'YtickLabel',arrayfun(@num2str,flipud(vLogFreq(1:S.nCarriersOct:length(vLogFreq))),'UniformOutput',false))
+%         drawnow
     end
 end
 

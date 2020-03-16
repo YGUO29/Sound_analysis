@@ -38,7 +38,7 @@ ftyymin = ftyymax/(10^(dBdynrange/20));
 ftx.ftyydB = 20*log10(max(ftyy, ftyymin)); % Convert to dB
 
 if plotON
-    figure;
+%     figure;
     imagesc(ftx.TimeAx, ftx.FreqAx, ftx.ftyydB); % Plot a 3D color plot
     axis('xy') % Put the origin at the lower left
     xlabel('Time, s.','fontsize',10); ylabel('Frequency, kHz','fontsize',10); colorbar % Make it pretty 
