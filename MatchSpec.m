@@ -40,7 +40,7 @@ data_fftagl_new(L/2+2:end) = -flipud(angles_new); % the new angles are also symm
 
 newdata = real(ifft(data_fftamp_new.*exp(1i.*data_fftagl_new))); % imagery part is ~16 orders less than real part
 newdata = newdata./max(abs(newdata));
-figure, plot(newdata)
+% figure, plot(newdata)
 
 %% normalize & fourier analysis
 std_norm = min(std(data), std(newdata)); %normalize power to the lower one

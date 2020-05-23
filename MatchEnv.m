@@ -22,16 +22,21 @@ env = abs(hilbert(data));
 
 %% ======= generate pink noise =========
 % L = length(data);
+% L = 2*fs;
 % f = linspace(1,fs/2,L/2-1); 
-% amp_half1 = 1./f;
+% amp_half1 = 1./sqrt(f);
 % amp_half2 = fliplr(amp_half1);
 % amp = [0, amp_half1, 0, amp_half2];
 % phase_half1 = (2.*rand(1,L/2-1) - 1).*pi;
 % phase_half2 = -fliplr(phase_half1);
 % phase = [pi, phase_half1, -pi, phase_half2];
 % 
-% % ========= generate sound ==========
+% % % ========= generate sound ==========
 % noise = real(ifft(amp.*exp(1i.*phase)));
+% noise = noise./max(abs(noise));
+% Sd.wav = noise; Sd.fs = fs;
+% figure, getSpectrogram(Sd,1)
+% figure, plot(abs(fft(noise)))
 % soundsc(noise,fs)
 % newsound = noise'.*env;
 %% generate pink noise with DSP toolbox
@@ -44,6 +49,9 @@ for i = 1:ceil(L/fs)
 end
 newdata = newdata(1:L);
 newdata = newdata./(max(abs(newdata)));
+% Sd.wav = newdata; Sd.fs = fs;
+% figure, getSpectrogram(Sd,1)
+% figure, plot(abs(fft(newdata)))
 newdata =  newdata.*env;
 %% normalize & fourier analysis
 std_norm = min(std(data), std(newdata)); %normalize power to the lower one

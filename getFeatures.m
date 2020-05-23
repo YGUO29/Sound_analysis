@@ -1,121 +1,85 @@
-clear all,
-global F % Sound feature structure
-% folder_sound = 'D:\=code=\McdermottLab\sound_natural\';
-% folder_sound = 'D:\=sounds=\Vocalization\LZ_AudFilt\PH\';
-folder_sound = 'X:\=Sounds=\Natural_XINTRINSIC2';
-% folder_sound = 'D:\=sounds=\Voc_jambalaya\Natural with Voc\';
+% folder_sound = 'D:\=sounds=\Natural sound\Natural JM with Voc\';
+% opt.iSound = [];
+% opt.plotON = 0;
+% opt.saveON = 0;
+% opt.save_filename = 'D:\=code=\Sound_analysis\F_test';
+% opt.windur = 0.0025;
+% opt.cochmode = 'ERB'; % log or linear, or ERB scale
+function F = getFeatures(folder_sound, opt)
+%% set sound list to be analyzed
 list = dir(fullfile(folder_sound,'*.wav'));
 names_sound = natsortfiles({list.name})';
-% iSound = I_inorder(end-9:end,2);
-iSound = 1:length(list);
-
-%% 1) plot cochleograms and frequency power on ERB scale
-% iSound = 1:3;
-% iSound = I_inorder(1:6,4);
-plotON = 1;
-
-
-F.Feat.FreqPower = [];
-[p,n] = numSubplots(length(iSound)); 
-if plotON
-    f1 = figure('color','w'); f2 = figure('color','w');
+if isempty(opt.iSound)
+    iSound = 1:length(list);
+else
+    iSound = opt.iSound;
 end
-% for k = 1:length(iSound)
-for k = 1:3
-
-    Sd.SoundName = names_sound{iSound(k)};
-    filename = [folder_sound,Sd.SoundName];
-    [Sd.wav,Sd.fs] = audioread(filename);
-    
-    % ======= cochleogram =======
-    windur = 0.0025; % window for downsamples cochleagram
-    mode = 'log'; % log or linear, or ERB scale
-    if plotON 
-        figure(f1), subplot(p(1),p(2),k) 
-    end
-    [F.CochEnv, F.CochEnv_ds, F.CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram(Sd, windur, mode, plotON);
-    % ===== frequency power =====
-    if plotON 
-        figure(f2), 
-%         subplot(p(1),p(2),k) 
-        subplot(3,1,k)
-    end
-    F.Feat.FreqPower(k,:) = getFreqPower(F.CochEnv, F.cf, plotON);
-    xticks([]); yticks([]);
-    k
-end
-%% 2) compute spectral, temporal, spectro-temporal modulation
+%% setup spectrao-temporal modulation analysis
 addpath(genpath('D:\=code=\McdermottLab\toolbox_spectrotemporal-synthesis-v2-master'))
-load('parameters_PLoSBio2018.mat', 'P');
-% resample if needed
-% P.audio_sr          = 44100;
-% P.t                 = F.t_ds;
-% P.f                 = F.cf;
-% P.env_sr            = floor(1/windur);
-% P.max_duration_sec  = 2;
-% P.temp_pad_sec      = 2;
-% P.freq_pad_oct      = 8;
+% load('parameters_PLoSBio2018.mat', 'P');
+load('SpecTempParameters_Yueqi.mat', 'P');
 F.temp_mod_rates = P.temp_mod_rates;
 F.spec_mod_rates = P.spec_mod_rates;
 F.temp_mod_rates_full = [-fliplr(P.temp_mod_rates), P.temp_mod_rates];
+F.mean_power = []; 
 
-MP = []; % mean spectro-temporal modulation power across all sounds 
-% for k = 1:length(iSound)
-%%
-for k = 2:3
+for k = 1:length(iSound)
 
     Sd.SoundName = names_sound{iSound(k)};
-    filename = [folder_sound,Sd.SoundName];
+    filename = fullfile(folder_sound,Sd.SoundName);
     [Sd.wav,Sd.fs] = audioread(filename);
     
     % ======= cochleogram =======
-    windur = 0.0025;
-    mode = 'log'; % log or linear, or ERB scale
-    plotON = 1;
-%     [F.CochEnv, F.CochEnv_ds, F.CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram(Sd, windur, mode, plotON);
-%     [~, CochEnv_ds, F.CochEnv_dB(:,:,k), F.cf, F.t_ds]  =  getCochleogram(Sd, windur, mode, plotON);
-    [~, CochEnv_ds, CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram(Sd, windur, mode, plotON);
-    
+    [~, CochEnv_ds, CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram(Sd, opt.windur, opt.cochmode,0);
+%     [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, windur,
+%     mode, plotON)
     % ======= interpolate cochleogram to log scale on frequency ========
     spacing = 1/24;
-    logf = 2.^(log2(20) : spacing : log2(Sd.fs/2));    
+    logf = 2.^(log2(min(F.cf)) : spacing : log2(Sd.fs/2));    
     f1 = F.cf; f2 = logf';
     n_t = size(CochEnv_ds,2); % number of time point of the cochleogram
     CochEnv_ds_log = nan(length(f2), n_t);
     for i = 1:n_t
         CochEnv_ds_log(:,i) = interp1(log2(f1),CochEnv_ds(:,i), log2(f2), 'pchip', 'extrap');
     end
+    F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
     % ===================================================================
-    
-    
-    plotON = 1;
-    % figure1, cochleargram, log scale
-    if plotON 
-        figure; 
+    F.cf_log = f2;
+    % figure1, cochleargram, downsampled, log scale
+    if opt.plotON 
+        f = figure; 
         size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
        
         subplot(2,3,1)
         imagesc(CochEnv_ds_log),axis('xy'), colorbar
         set(gca, 'FontSize', 20);
-            freqs   = floor([440*2.^([0:5]), max(logf)]./10).*10; % the index of 10
-            fticks  = floor(interp1(logf, 1:1:length(logf), freqs));
+            freqs   = floor([440*2.^([0:5]), max(F.cf_log)]./10).*10; % the index of 10
+            fticks  = floor(interp1(F.cf_log, 1:1:length(F.cf_log), freqs));
             set(gca,'ytick',fticks)
             set(gca,'yticklabels',arrayfun(@num2str,freqs./1000,'UniformOutput',false))
         
             ts      = [0.5,1,1.5];
             tticks  = floor(interp1(F.t_ds, 1:1:length(F.t_ds), ts));
-            set(gca,'xtick',tticks)
-            set(gca,'xticklabels',arrayfun(@num2str,ts,'UniformOutput',false))
+%             set(gca,'xtick',tticks)
+%             set(gca,'xticklabels',arrayfun(@num2str,ts,'UniformOutput',false))
         title(['Cochleagram, ',strrep(Sd.SoundName, '_', '-')])
     end
 %     F.CochEnv_ds(:,:,k) = CochEnv_ds_log;
-    F.cf = logf;
+%     F.cf = logf;
     
     % ===== compute modulation power =====
     % computes the first four moments of the filter responses:
     % (1) mean (2) variance (3) skew (4) kurtosis
+    % resample if needed
+%     P.audio_sr          = Sd.fs;
+%     P.t                 = F.t_ds;
+%     P.f                 = F.cf_log;
+%     P.env_sr            = floor(1/opt.windur);
+%     P.max_duration_sec  = 12;
+%     P.temp_pad_sec      = 24;% used to be 2, Sam used 24
+%     P.freq_pad_oct      = 24;% used to be 8, Sam used 24
 %     M = all_filter_moments_from_coch(F.CochEnv_ds(:,:,k)', P, 1:size(F.CochEnv_ds(:,:,k)',1));
-    M = all_filter_moments_from_coch(CochEnv_ds', P, 1:size(CochEnv_ds',1));
+    M = all_filter_moments_from_coch(CochEnv_ds_log', P, 1:size(CochEnv_ds_log',1));
     
     % pick out mean of cochlear, standard deviation of all other feats
     F.coch_env(:,k) = M.coch_env(:,1);
@@ -129,28 +93,39 @@ for k = 2:3
     dims = size(spectemp_mod);
     spectemp_mod = reshape(spectemp_mod, [dims(1), dims(2)/2, 2, dims(3)]);
     % average spectrotemporal modulation power across all frequencies
-    % added by Yueqi July, 2019
+    % (added by Yueqi July, 2019)
     spectemp_mod_avg = mean(spectemp_mod,4);
-    % X is for display purpose
+    F.spectemp_mod(:,:,k) = squeeze(mean(spectemp_mod_avg,3)); % collapse +/- temporal rates
+    
     X = cat(2, fliplr(spectemp_mod_avg(:,:,2)), spectemp_mod_avg(:,:,1));
-    % the feature used combines positive and negative temporal rates
-    F.spectemp_mod(:,:,k) = squeeze(mean(spectemp_mod_avg,3));
-    F.spectemp_mod_full(:,:,k) = X;
+    F.spectemp_mod_full(:,:,k) = X; % keep +/- temporal rates
  
+    % average spectrotemporal modulation power weighted by frequency power
+    % (added by Yueqi April, 2020)
+    %?????????????????????
+    weights = F.coch_env(:,k)./sum(F.coch_env(:,k));
+    spectemp_mod_weighted = spectemp_mod;
+    for i = 1:size(spectemp_mod,4)
+        spectemp_mod_weighted(:,:,:,i) = spectemp_mod(:,:,:,i).*weights(i);
+    end
+    spectemp_mod_weighted = mean(spectemp_mod_weighted, 4);
+    Y = cat(2, fliplr(spectemp_mod_weighted(:,:,2)), spectemp_mod_weighted(:,:,1));
+    F.spectemp_mod_weighted_full(:,:,k) = Y; % keep +/- temporal rates
+    F.spectemp_mod_weighted(:,:,k) = squeeze(mean(spectemp_mod_weighted,3));
+    
     % average spectrotemporal modulation power across all stimulus   
-    % ======= added by Yueqi July, 2019 =======
+    % (added by Yueqi July, 2019)
 %     F.spectemp_mod_avg = mean(F.spectemp_mod,4);
     if k == 1 
-        MP = F.spectemp_mod(:,:,k);
+        F.mean_power = F.spectemp_mod(:,:,k);
     else
-        MP = MP.*(k-1)./k + F.spectemp_mod(:,:,k)./k;
+        F.mean_power = F.mean_power.*(k-1)./k + F.spectemp_mod(:,:,k)./k;
     end
     % ======= ========================== =======
-    if plotON   
-        % figure2, spectral profile
+    if opt.plotON   
+        % spectral profile
         subplot(2,3,2)
-        %         semilogx(F.cf,F.coch_env(:,k)), 
-        semilogy(F.coch_env(:,k), F.cf, 'LineWidth',3), 
+        semilogy(F.coch_env(:,k), F.cf_log, 'LineWidth',3), 
         xlim([min(F.coch_env(:,k)), max(F.coch_env(:,k))])
         ylim([min(F.cf), max(F.cf)])
         set(gca, 'FontSize', 20);
@@ -195,14 +170,9 @@ for k = 2:3
         xlabel('Temporal rate (Hz)');
         title('Spectrotemporal modulation (averaged across cf)');
         
-         % plot spectrotemporal modulation for a given audio frequency
+        % plot spectrotemporal modulation for averaged frequency
         subplot(2,3,6)
-%         audiofreq = 7000;
-%         [~,xi] = min(abs(P.f-audiofreq));
-        [~,xi] = max(abs(F.coch_env(:,k)));
-        audiofreq = F.cf(xi);
-        X = cat(2, fliplr(spectemp_mod(:,:,2,xi)), spectemp_mod(:,:,1,xi));
-        imagesc(flipud(X)); colorbar
+        imagesc(flipud(Y)); colorbar
         spec_mod_rates_flip = fliplr(P.spec_mod_rates);
         temp_mod_rates_neg_pos = [-fliplr(temp_mod_rates_without_DC), temp_mod_rates_without_DC];
         set(gca, 'YTick', [1, 3, 5], 'YTickLabel', spec_mod_rates_flip([1 3 5]));
@@ -210,43 +180,34 @@ for k = 2:3
         set(gca, 'FontSize', 20);
         ylabel('Spectral scale (cyc/oct)');
         xlabel('Temporal rate (Hz)');
-        title(['Spectrotemporal modulation ( cf = ',num2str(audiofreq),' Hz)']);
+        title('Spectrotemporal modulation (weighted average)');
+         % plot spectrotemporal modulation for a given audio frequency
+         
+         
+%         subplot(2,3,6)
+%         [~,xi] = max(abs(F.coch_env(:,k)));
+%         audiofreq = F.cf(xi);
+%         X = cat(2, fliplr(spectemp_mod(:,:,2,xi)), spectemp_mod(:,:,1,xi));
+%         imagesc(flipud(X)); colorbar
+%         spec_mod_rates_flip = fliplr(P.spec_mod_rates);
+%         temp_mod_rates_neg_pos = [-fliplr(temp_mod_rates_without_DC), temp_mod_rates_without_DC];
+%         set(gca, 'YTick', [1, 3, 5], 'YTickLabel', spec_mod_rates_flip([1 3 5]));
+%         set(gca, 'XTick', [3, 7, 12, 16], 'XTickLabel', temp_mod_rates_neg_pos([3, 7, 12, 16]))
+%         set(gca, 'FontSize', 20);
+%         ylabel('Spectral scale (cyc/oct)');
+%         xlabel('Temporal rate (Hz)');
+%         title(['Spectrotemporal modulation ( cf = ',num2str(audiofreq),' Hz)']);
     end
-%     saveas(f,['D:\=code=\Sound_analysis\figure_NatSoundFeatures_YG_marm\features_',num2str(k),'_',Sd.SoundName,'.png'])
-%     close(f)
+    
+    if opt.savefigON
+    saveas(f,['D:\=data=\Sound\Spectrotemporal modulation\figure_NatSoundFeatures_YG_marm4\features_',num2str(k),'_',Sd.SoundName,'.png'])
+    close(f)
+    end
     k
 end
-
 F = getFeatureMatrix(F);
-% save F_yg_marm F
 
-%% temp
-k = 158; 
-figure,imagesc(flipud(F.spectemp_mod(:,:,k)))
-set(gca, 'YTick', [2,4,6], 'YTickLabel', F.spec_mod_rates([end-1 end-3 end-5]));
-set(gca, 'XTick', [1 3 5 7], 'XTickLabel', F.temp_mod_rates([1 3 5 7]));
-set(gca, 'fontsize', 30)
-
-
-%% histogram of the feature distribution
-Feature = F.Feat.FreqPower;
-figure,
-[p,n] = numSubplots(size(Feature, 2)); 
-for k = 1:size(Feature, 2)
-    subplot(p(1),p(2),k)
-    hist(Feature(:,k),20)
+if opt.saveON
+    save(opt.save_filename, 'F')
 end
-
-% ============= Regression ===============
-for iComp = 1:K
-    figure,
-    for iFreq = 1:8
-        xx = F.Feat.FreqPower(:,iFreq);
-        yy = R(:,iComp);
-        subplot(2,4,iFreq)
-        scatter(xx,yy),title(['frequency band ',num2str(iFreq),', component ',num2str(iComp)])
-        [p,rsq,yfit] = RSquared(xx,yy);
-        results(2*(iComp-1)+1,iFreq) = rsq;
-        results(2*iComp,iFreq) = p(1);
-    end
 end

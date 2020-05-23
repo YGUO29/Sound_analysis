@@ -1,0 +1,3 @@
+F_yg_marm: original features, lowest frequency = 20Hz, unknown other parameters
+F_yg_marm2: updated May 2020, parameters recorded in OneNote
+F_yg_marm3: updated May 2020, lowest frequency = 100Hz

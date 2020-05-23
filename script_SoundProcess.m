@@ -2,19 +2,23 @@
 % add envolope ramping
 % set proper duration
 clear all
+soundpath = 'D:\=sounds=\Natural sound\Natural_JM original';
 % soundpath = 'D:\=sounds=\Vocalization\LZ_select\TR';
-soundpath = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm';
-% soundpath = 'D:\=sounds=\Natural sound\Natural JM with Voc';
-savepath = 'D:\=sounds=\Vocalization\LZ_MatchSpec\TW';
+% soundpath = 'D:\=sounds=\Vocalization\Voc_jambalaya';
+% savefilepath = 'D:\=sounds=\Vocalization\LZ_ControlSounds\LZ_MatchEnv\TR\';
 addpath(genpath(soundpath))
 list = dir(fullfile(soundpath,'*.wav'));
+[names_sound, idx] = natsortfiles({list.name});
+list = list(idx);
+
 list_sub = cell(6,2);
 list_sub(:,1) = {'M29A'; 'M64A'; 'M91C'; 'M92C'; 'M93A'; 'M9606'};
 list_sub(:,2) = mat2cell([1:6]',ones(6,1));
 %% go over all sounds
 addpath('D:\=code=\Sound_analysis');
-proc_method = 'pad'; 
-plot_method = 'cochleogram'; % spectrogram or cochleogram
+savefilepath = 'D:\=sounds=\Natural sound\Natural_JM_MatchSpecEnv';
+proc_method = 'MatchEnv'; 
+plot_method = 'spectrogram'; % spectrogram or cochleogram
 % filter - high pass filter at 3kHz\
 % pad - padding sounds to a certain duration
 % MatchSpec - match spectrum (phase scramble)
@@ -26,11 +30,13 @@ plotON = 0;
 saveON = 0;
 fwait = waitbar(0,'Started getting calls ...');
 S = struct;
-% for i = 6:7
+% for i = 1:2
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
 
     [Sd.wav, Sd.fs] = audioread(list(i).name);
+    Sd.wav = resample(Sd.wav, 44100, Sd.fs);
+    Sd.fs = 44100; 
     % get information
     S(i).soundname = list(i).name;
     S(i).dur = length(Sd.wav)./Sd.fs; % duration in seconds
@@ -39,6 +45,7 @@ for i = 1:length(list)
     S(i).subid = list_sub(find(strcmp(list_sub(:,1),S(i).sub)), 2);
     S(i).subid = cell2mat(S(i).subid);
     S(i).std = std(Sd.wav);
+    S(i).fs = Sd.fs;
 if procON
     switch proc_method
         case 'filter'
@@ -63,9 +70,9 @@ if procON
                 = newSd.wav(end-round(newSd.fs*0.1)+1:end).*linspace(1, 0, round(newSd.fs*0.1))';
         case 'pad'
             newSd = Sd;
-            newSd.wav = [Sd.wav; zeros(3.*Sd.fs)];
-
-            
+            newSd.wav = zeros(ceil(max(dur_mat).*Sd.fs),1);
+            newSd.wav(1:length(Sd.wav)) = Sd.wav;
+            S(i).spectrogram = getSpectrogram(newSd,0,0.01);
         case 'MatchSpec'
             newSd = Sd;
             [newSd.wav, Sd.wav] = MatchSpec(Sd, plotON);
@@ -121,7 +128,7 @@ if procON
 else % if no processing required
     if plotON
         if strcmp(plot_method, 'spectrogram')
-            figure,
+            figurex,
             % =========== plot figures, waveform and spectrogram ================
             subplot(1,2,1)
             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
@@ -149,15 +156,15 @@ end
 if saveON
     % =========== save new audio ================
     newSd.wav = newSd.wav./max(abs(newSd.wav));
-    audiowrite([savepath, '\', list(i).name], newSd.wav, newSd.fs)
+    audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
 end    
 
 end
 
 %% normalize sound level 
-savepath = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm';
-if ~exist(savepath, 'dir')
-    mkdir(savepath)
+savefilepath = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm';
+if ~exist(savefilepath, 'dir')
+    mkdir(savefilepath)
 end
 power_min = min(cell2mat({S.std})) % min of power
 fwait = waitbar(0,'Started getting calls ...');
@@ -169,13 +176,14 @@ for i = 1:length(list)
     newSd.fs = Sd.fs;
     S(i).std_norm =  std(newSd.wav);
     
-    audiowrite([savepath, '\', list(i).name], newSd.wav, newSd.fs)
+    audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
 end
 figure, 
 subplot(2,1,1)
 plot(cell2mat({S.std})); title('std before normalization')
 subplot(2,1,2)
 plot(cell2mat({S.std_norm})); title('std after normalization')
+
 
 %% get statistics of original vocalizations
 dur_mat = cell2mat({S(:).dur});
@@ -195,6 +203,52 @@ for i = 1:6
 subplot(2,3,i)
 hist(dur{i},100)
 title(list_sub{i,1})
+end
+
+%% plot clusters of vocalization based on MDS
+X_mat = zeros(size(S(1).spectrogram.ftyydB));
+X_mat = repmat(X_mat,1,1,length(S));
+
+for i = 1:length(S)
+%     X_mat_size(:,:,i) = size(S(i).spectrogram.ftyydB);
+    X_mat(:,:,i) = S(i).spectrogram.ftyydB;
+end
+X = reshape(X_mat, [size(X_mat,1)*size(X_mat,2), size(X_mat,3)]);
+D = pdist(X');
+D = squareform(D);
+%%
+Y = mdscale(D,2);
+figure, 
+for i = 1:size(D,1)
+    h = scatter(Y(i,1), Y(i,2)); hold on
+
+    h = scatter3(Y(i,1), Y(i,2), Y(i, 3)); hold on
+    if contains(S(i).soundname,'TR')
+        h.MarkerEdgeColor = 'r';
+    elseif contains(S(i).soundname,'TP')
+        h.MarkerEdgeColor = 'm';
+    elseif contains(S(i).soundname,'TW')
+        h.MarkerEdgeColor = 'g';
+    elseif contains(S(i).soundname,'MX')
+        h.MarkerEdgeColor = 'k';
+    else 
+        h.MarkerEdgeColor = 'c';
+    end
+    
+    switch S(i).subid
+        case 1
+            h.Marker = 'o';
+        case 2  
+            h.Marker = 's';
+        case 3
+            h.Marker = '+';
+        case 4
+            h.Marker = '.';
+        case 5 
+            h.Marker = '^';
+        otherwise
+            h.Marker = '*';
+    end
 end
 %% ====== pick sounds =====
 i_temp = zeros(1,length(list));
@@ -265,16 +319,28 @@ for k = 1:length(ind_temp)
 end
 
 
-%% temp script
-Sd.wav = data;
-Sd.fs = fs;
+%% temp script (compare cochleaogram before & after noise reduction)
+soundname = 'PH_M92C_S88_call53.wav';
+type = 'PH';
+% unfiltered
+path = ['D:\=sounds=\Vocalization\LZ_ControlSounds\LZ_MatRamp\', type];
+[Sd.wav, Sd.fs] = audioread(fullfile(path, ['Ramp_', soundname]));
 plotON = 1;
-figure,
-[Mat_env, Mat_env_ds2, MatdB, cf, t_ds] = getCochleogram(Sd, 0.001, 'ERB', plotON);
 
+figure('position', [ 307         563        1881         420]),
+subplot(1,3,2)
+[Mat_env, Mat_env_ds1, MatdB, cf, t_ds] = getCochleogram(Sd, 0.001, 'ERB', plotON);
+% filtered
+path = ['D:\=sounds=\Vocalization\LZ_AudFilt\', type];
+[Sd.wav, Sd.fs] = audioread(fullfile(path, soundname));
+plotON = 1;
+subplot(1,3,1)
+[Mat_env, Mat_env_ds2, MatdB, cf, t_ds] = getCochleogram(Sd, 0.001, 'ERB', plotON);
 %%
-ind_line = 155;
-figure, 
-plot( Mat_env_ds2(ind_line,:)./max(abs(Mat_env_ds2(ind_line,:))) );
+ind_line = 165;
+subplot(1,3,3) 
+plot( Mat_env_ds1(ind_line,:)./max(abs(Mat_env_ds2(ind_line,:))) );
 hold on, 
-plot( Mat_env_ds1(ind_line,:)./max(abs(Mat_env_ds1(ind_line,:))) );
+plot( Mat_env_ds2(ind_line,:)./max(abs(Mat_env_ds1(ind_line,:))) );
+legend({'unfiltered', 'filtered'})
+title(['Cross-section at cf = ', num2str(cf(ind_line)./1000, '%.2f'), 'kHz'])

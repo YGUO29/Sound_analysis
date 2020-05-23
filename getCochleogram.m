@@ -2,6 +2,9 @@ function [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, windur, mod
 % Reference: Slaney 1993 (Patterson-Holdsworth auditory filter bank, 1992)
 % Given a waveform and SR, plot ERB gammatonegram based on:
 % Determine the Equivalent Rectangular Bandwidths of the Filter Bank (in Hz)
+% Mat_env: before downsample on time
+% Mat_env_ds: after downsample based on windur, compressed
+% MatdB: after downsample based on windur, converted to dB scale
 lengthwindow = round(Sd.fs*windur);
 ERB_freq_Raw =  [  250     500     1000    7000    16000];
 ERB_raw =       [  90.97   126.85  180.51  460.83  2282.71];
@@ -19,11 +22,11 @@ elseif strcmp(mode,'linear') % with 100Hz interval
     ERB = interp1(ERB_freq_Raw,	ERB_raw, cf,'pchip'); 
 elseif strcmp(mode,'ERB') % overlap by 0.2 ERB
     overlap = 0.2;
-    cf_temp =   20; % first cf at min frequency resolution value
+    cf_temp =   100; % first cf at min frequency resolution value
     cf =        cf_temp; % initialize first cf
     ERB_temp =  interp1(ERB_freq_Raw, ERB_raw, cf_temp,'pchip'); % initialize first ERB
     ERB =       ERB_temp;
-    while cf_temp + overlap*ERB_temp < 21000 % or Sd.fs/2
+    while cf_temp + overlap*ERB_temp < Sd.fs/2 % 21000  Sd.fs/2
         cf_temp     = cf_temp + overlap*ERB_temp; % determin how much overlap between channels
         cf          = [cf cf_temp];
         ERB_temp    = interp1(ERB_freq_Raw, ERB_raw, cf_temp,'pchip'); 
@@ -175,7 +178,7 @@ if plotON
           
     % label some frequencies for log mode  
         case 'log'
-        freqs = floor([440*2.^([0:5]), max(cf)]./10).*10; % the index of 10
+        freqs = floor([440*2.^([0:5])]./10).*10; % the index of 10
   
     % label some frequencies for ERB mode
         case 'ERB'

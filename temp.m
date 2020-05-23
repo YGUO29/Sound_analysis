@@ -23,3 +23,18 @@ for i = 1:length(list1)
     s1 = list1{i};
     ind(i) = find(strcmp(s1,list2));
 end
+
+%%
+ind = [];
+for i = 1:size(info,1)
+    if contains(info(i,5),'Voc')
+        ind = [ind, i];
+    end
+end
+%%
+dur = zeros(length(ind),1);
+for i = 1:length(ind)
+    wav = info{ind(i),2}{2};
+    fs = info{ind(i),2}{1};
+    dur(i) = length(wav)/fs;
+end
