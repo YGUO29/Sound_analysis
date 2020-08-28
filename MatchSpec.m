@@ -63,16 +63,16 @@ newdata_fftamp                 = newdata_fftamp./repmat(newdata_fftamp(1,:),[flo
 
 %% plot
 if plotON
-    figure,
-    subplot(2,3,1), plot(t, data), title('original sound, waveform')
-    subplot(2,3,2), semilogx(f(2:end),data_fftamp(2:end)), title('original sound, spectrum')
-    xlim([4e3, 10e3])
-    subplot(2,3,3), plot(data_fftagl), title('original sound, phase')
+%     figure,
+%     subplot(2,3,1), plot(t, data), title('original sound, waveform')
+    subplot(2,3,2), semilogx(f(2:end),data_fftamp(2:end)), title('Spectrum')
+%     xlim([4e3, 10e3])
+%     subplot(2,3,3), plot(data_fftagl), title('original sound, phase')
     
-    subplot(2,3,4), plot(t, newdata), title('PS sound, waveform')
-    subplot(2,3,5), semilogx(f(2:end),newdata_fftamp(2:end)), title('PS sound, spectrum')
-    xlim([4e3, 10e3])
-    subplot(2,3,6), plot(newdata_fftagl), title('PS sound, phase')
+%     subplot(2,3,4), plot(t, newdata), title('PS sound, waveform')
+    subplot(2,3,5), semilogx(f(2:end),newdata_fftamp(2:end)), title('Spectrum')
+%     xlim([4e3, 10e3])
+%     subplot(2,3,6), plot(newdata_fftagl), title('PS sound, phase')
 end
 
 if pad_flag % remove the zero padding

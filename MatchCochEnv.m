@@ -1,7 +1,7 @@
 % Generate envelope matched pink noise
 % output: newdata is the matched noise, data is the original sound (power
 % matched with the new sound)
-function [newdata, data] = MatchEnv(Sd, plotON)
+function [newdata, data] = MatchCochEnv(Sd, plotON)
 
 data = Sd.wav;
 fs = Sd.fs; 
@@ -17,57 +17,38 @@ t = (0:L-1)*T;
 data_fft = fft(data, L);
 data_fftamp = abs( data_fft/L );
 data_fftagl = angle(data_fft);
-env = abs(hilbert(data)); % cannot use this directly for envelope (Hilbert does not apply to broadband signals)
-%% cochleogram sum
-% load('SpecTempParameters_Yueqi.mat')
-% % figurex;
-% [Mat_env_ds, ~, P] = getCochleogram_halfcosine(Sd, P, 0);
-% Mat_env_ds = Mat_env_ds.^(1/P.compression_factor);
-% env2 = sum(Mat_env_ds);
-% tt = 1/P.env_sr: 1/1/P.env_sr : length(data)/Sd.fs;
-% if length(tt) ~= length(env2)
-%     tt = [0, tt];
-% end
-% tsin = timeseries(env2, tt);
-% tsout = resample(tsin, t);
-% env2 = squeeze(tsout.Data);
-% env2(isnan(env2)) = 0;
+env = abs(hilbert(data));
+%% cochleogram sum - filter white noise first, then multiply
+load('SpecTempParameters_Yueqi.mat')
+% figurex;
+[coch_sound_ds, coch_sound, P] = getCochleogram_halfcosine(Sd, P, 0); % #channels * #timepoints
+% generate new carrier (white noise went through cochlea channels)
+Sd_noise.wav = 2.*(rand(length(data),1) - 1/2);
+Sd_noise.fs = fs;
+[coch_noise_ds, coch_noise, P] = getCochleogram_halfcosine(Sd_noise, P, 0); % #channels * #timepoints
 
-%% MATLAB envelope rms or peak
-% [env3, ~] = envelope(data,300, 'rms');
-% [env4, ~] = envelope(data,300, 'peak');
+tt = 1/P.env_sr: 1/1/P.env_sr : length(data)/Sd.fs;
+CochNoise = zeros(length(t),size(coch_sound_ds,1));
+for i = 1:length(P.f)
+    env = coch_sound_ds(i,:).^(1/P.compression_factor);
+%     env = Mat_env_ds(i,:);
+    if length(tt) ~= length(env)
+        tt = [0, tt];
+    end
+    tsin = timeseries(env, tt);
+    tsout = resample(tsin, t);
+    env = squeeze(tsout.Data);
+    carrier = coch_noise(i,:);
+%     carrier = sin((2*pi*P.f(i)).*t);
+    CochNoise(:,i) = env.*carrier';
+end
+CochNoise(isnan(CochNoise)) = 0;
 
-%% rectifying + low pass
-data_rec = data;
-data_rec(data<0) = -data(data<0);
+% test plot
+% figure, plot(coch_sound(100,:)./max(coch_sound(100,:))), pause, 
+% hold on,  plot(coch_noise(100,:)./max(coch_noise(100, :))), pause
+% hold on, plot(CochNoise(:,100)./max(CochNoise(:,100)))
 
-% d = designfilt('lowpassiir',...
-%                 'FilterOrder', 3,...
-%                 'PassbandFrequency', 40,... % this 160Hz was used in Shannon 2001
-%                 'SampleRate', fs);
-% % fvtool(d)
-% env2 = filtfilt(d,data_rec); 
-% 
-d = designfilt('lowpassiir',...
-                'FilterOrder', 3,...
-                'PassbandFrequency', 80,... % this 160Hz was used in Shannon 2001
-                'SampleRate', fs);
-% fvtool(d)
-env3 = filtfilt(d,data_rec); 
-% 
-% d = designfilt('lowpassiir',...
-%                 'FilterOrder', 3,...
-%                 'PassbandFrequency', 160,... % this 160Hz was used in Shannon 2001
-%                 'SampleRate', fs);
-% % fvtool(d)
-% env4 = filtfilt(d,data_rec); 
-% 
-% d = designfilt('lowpassiir',...
-%                 'FilterOrder', 3,...
-%                 'PassbandFrequency', 320,... % this 160Hz was used in Shannon 2001
-%                 'SampleRate', fs);
-% % fvtool(d)
-% env5 = filtfilt(d,data_rec); 
 %% plot envelope and signal together
 % figurex([1440         918        1864         420]); hold on
 % plot(t, data,'k');
@@ -76,53 +57,32 @@ env3 = filtfilt(d,data_rec);
 % plot(t, env3, 'm'); % envelope rms
 % plot(t, env4, 'c'); % envelope peak
 % plot(t, env5, 'g'); % rec+lowfilt
-% legend({'raw', '40Hz cutoff', '80Hz cutoff', '160Hz cutoff', '320Hz cutoff'})
 % legend({'Raw signal', 'Hilbert envelope', 'Cochleogram envelope', 'RMS, window 30ms', 'Peak, window 30ms'})
-
+% 
 % figurex([1440         918        1864         420]); hold on
-% plot(t, data_rec./max(data_rec),'k');
+% plot(t, data./max(data),'k');
 % plot(t, env./max(env), 'b');
 % plot(t, env2./max(env2), 'r');
 % plot(t, env3./max(env3), 'm');
 % plot(t, env4./max(env4), 'c');
 % plot(t, env5./max(env5), 'g'); % rec+lowfilt
-% legend({'raw', '40Hz cutoff', '80Hz cutoff', '160Hz cutoff', '320Hz cutoff'})
 % legend({'Raw signal', 'Hilbert envelope', 'Cochleogram envelope', 'RMS, window 30ms', 'Peak, window 30ms'})
 
-
-%% ======= generate pink noise manually =========
-% L = length(data);
-% L = 2*fs;
-% f = linspace(1,fs/2,L/2-1); 
-% amp_half1 = 1./sqrt(f);
-% amp_half2 = fliplr(amp_half1);
-% amp = [0, amp_half1, 0, amp_half2];
-% phase_half1 = (2.*rand(1,L/2-1) - 1).*pi;
-% phase_half2 = -fliplr(phase_half1);
-% phase = [pi, phase_half1, -pi, phase_half2];
-% 
-% % % ========= generate sound ==========
-% noise = real(ifft(amp.*exp(1i.*phase)));
-% noise = noise./max(abs(noise));
-% Sd.wav = noise; Sd.fs = fs;
-% figure, getSpectrogram(Sd,1)
-% figure, plot(abs(fft(noise)))
-% soundsc(noise,fs)
-% newsound = noise'.*env;
 %% generate pink noise with DSP toolbox
 % cn = dsp.ColoredNoise(pow,samp,numChan,Name,Value)
-cn = dsp.ColoredNoise(1,fs,1);
-newdata = [];
-for i = 1:ceil(L/fs)
-    rng default
-    newdata = [newdata; cn()];
-end
+% cn = dsp.ColoredNoise(1,fs,1);
+% newdata = [];
+% for i = 1:ceil(L/fs)
+%     rng default
+%     newdata = [newdata; cn()];
+% end
+newdata = sum(CochNoise,2);
 newdata = newdata(1:L);
 newdata = newdata./(max(abs(newdata)));
 % Sd.wav = newdata; Sd.fs = fs;
 % figure, getSpectrogram(Sd,1)
 % figure, plot(abs(fft(newdata)))
-newdata =  newdata.*env3;
+% newdata =  newdata.*env5;
 %% normalize & fourier analysis
 std_norm = min(std(data), std(newdata)); %normalize power to the lower one
 newdata = newdata.*(std_norm./std(newdata));

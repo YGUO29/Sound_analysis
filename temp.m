@@ -25,16 +25,14 @@ for i = 1:length(list1)
 end
 
 %%
-ind = [];
-for i = 1:size(info,1)
-    if contains(info(i,5),'Voc')
-        ind = [ind, i];
-    end
+Sd.fs = 44100;
+frequency = 110.*2.^(0:7);
+t = 1/Sd.fs:1/Sd.fs:5;
+profile = [];
+for i = 1:length(frequency)
+    Sd.wav = sin(2*pi*frequency(i).*t);
+    [~, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, 0.0025, 'log', 0);
+    profile(i,:) = mean(Mat_env_ds, 2);
 end
-%%
-dur = zeros(length(ind),1);
-for i = 1:length(ind)
-    wav = info{ind(i),2}{2};
-    fs = info{ind(i),2}{1};
-    dur(i) = length(wav)/fs;
-end
+figure, semilogx(cf, profile(1:end-1,:)')
+

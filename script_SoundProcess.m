@@ -2,8 +2,8 @@
 % add envolope ramping
 % set proper duration
 clear all
-soundpath = 'D:\=sounds=\Natural sound\Natural_JM original';
-% soundpath = 'D:\=sounds=\Vocalization\LZ_select\TR';
+% soundpath = 'D:\=sounds=\Natural sound\Natural_JM original';
+soundpath = 'D:\=sounds=\Vocalization\LZ_AudFilt\TR';
 % soundpath = 'D:\=sounds=\Vocalization\Voc_jambalaya';
 % savefilepath = 'D:\=sounds=\Vocalization\LZ_ControlSounds\LZ_MatchEnv\TR\';
 addpath(genpath(soundpath))
@@ -16,21 +16,23 @@ list_sub(:,1) = {'M29A'; 'M64A'; 'M91C'; 'M92C'; 'M93A'; 'M9606'};
 list_sub(:,2) = mat2cell([1:6]',ones(6,1));
 %% go over all sounds
 addpath('D:\=code=\Sound_analysis');
-savefilepath = 'D:\=sounds=\Natural sound\Natural_JM_MatchSpecEnv';
+savefilepath = 'D:\=sounds=\Vocalization\LZ_ControlSounds\LZ_MatchEnv_lowpass_80Hz\TR';
 proc_method = 'MatchEnv'; 
 plot_method = 'spectrogram'; % spectrogram or cochleogram
 % filter - high pass filter at 3kHz\
 % pad - padding sounds to a certain duration
 % MatchSpec - match spectrum (phase scramble)
 % MatchEnv - match envelope (extract envelope and apply to pink noise)
+% MatchCochEnv - match envelope of each cochleogram channel, fill in carrier with white noise
 % MatchSpecEnv - match spectrum and envelope
 
 procON = 1;
-plotON = 0;
-saveON = 0;
+plotON = 0; 
+saveON = 1;
+% close(fwait)
 fwait = waitbar(0,'Started getting calls ...');
 S = struct;
-% for i = 1:2
+% for i = 50
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
 
@@ -47,6 +49,9 @@ for i = 1:length(list)
     S(i).std = std(Sd.wav);
     S(i).fs = Sd.fs;
 if procON
+    if plotON
+        f1 = figurex([532         592        1827         746]);
+    end
     switch proc_method
         case 'filter'
         % =========== RAMP & filter ================
@@ -83,6 +88,9 @@ if procON
         case 'MatchEnv'
             newSd = Sd;
             [newSd.wav, Sd.wav] = MatchEnv(Sd, plotON);
+        case 'MatchCochEnv'
+            newSd = Sd;
+            [newSd.wav, Sd.wav] = MatchCochEnv(Sd, plotON);
         case 'MatchSpecEnv'
             newSd = Sd;
             [newSd.wav, Sd.wav] = MatchSpecEnv(Sd, plotON);
@@ -91,39 +99,51 @@ if procON
 
     if plotON
         if strcmp(plot_method, 'spectrogram')
-            figure,
             % =========== plot figures, waveform and spectrogram ================
-            subplot(2,2,1)
+            subplot(2,3,1) % original waveform
             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
+            title('Original sound')
             xlim([0, S(i).dur])
-            subplot(2,2,2)
+            
+            subplot(2,3,3) % original spectrogram
             getSpectrogram(Sd,1,0.01);
-            subplot(2,2,3)
+            title('Spectrogram')
+            
+            subplot(2,3,4) % new waveform
             plot(1/newSd.fs:1/newSd.fs:S(i).dur, newSd.wav);
             xlim([0, S(i).dur])
-            subplot(2,2,4)    
+            title(['Modified sound, ',proc_method])
+            
+            subplot(2,3,6) % new spectrogram
             getSpectrogram(newSd,1,0.01);
+            title('Spectrogram')
+            
+
         elseif strcmp(plot_method, 'cochleogram')
-            figure,
+            figurex;
             % =========== plot figures, waveform and spectrogram ================
-            subplot(2,2,1)
+            subplot(2,3,1) % original waveform
             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
             xlim([0, S(i).dur])
-            subplot(2,2,2)
-            [~,~,~,~,~] = getCochleogram(Sd, 0.01, 'ERB', plotON);
-            subplot(2,2,3)
+            
+            subplot(2,3,2) % original spectrogram
+            [~,~,~] = getCochleogram_halfcosine(Sd, P, plotON);
+            
+            subplot(2,3,4) % new waveform
             plot(1/newSd.fs:1/newSd.fs:S(i).dur, newSd.wav);
             xlim([0, S(i).dur])
-            subplot(2,2,4)    
-            [~,~,~,~,~] = getCochleogram(newSd, 0.01, 'ERB', plotON);
+            
+            subplot(2,3,5) % new spectrogram
+            [~,~,~] = getCochleogram_halfcosine(newSd, P, plotON);
+           
         else
             disp('check plot_mothod')
         end
         
-        soundsc(Sd.wav,Sd.fs)
-        pause
-        soundsc(newSd.wav,newSd.fs)
-        pause
+%         soundsc(Sd.wav,Sd.fs)
+%         pause
+%         soundsc(newSd.wav,newSd.fs)
+        
     end
 else % if no processing required
     if plotON
@@ -158,6 +178,7 @@ if saveON
     newSd.wav = newSd.wav./max(abs(newSd.wav));
     audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
 end    
+% close(fwait)
 
 end
 

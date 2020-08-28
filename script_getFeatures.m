@@ -1,28 +1,23 @@
 % folder_sound = 'D:\=sounds=\Natural sound\Natural JM with Voc\';
 % folder_sound = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm_165';
-folder_sound = 'D:\=sounds=\Natural sound\Natural_JM_MatchEnv';
+folder_sound = 'D:\=sounds=\Natural sound\Natural_JM original';
 % temp = zeros(7, 9, 165);
-opt.iSound = 79;
+opt.iSound = 1:165;
 opt.plotON = 1;
-opt.savefigON = 0;
-opt.saveON = 0;
-opt.save_filename = 'D:\=code=\Sound_analysis\F_yg_marm4';
+opt.savefigON = 1;
+opt.saveON = 1;
+opt.save_filename = 'D:\=code=\Sound_analysis\F_halfcosine_marm';
 opt.windur = 0.0025;
 opt.cochmode = 'ERB'; % log or linear, or ERB scale
-F = getFeatures(folder_sound, opt);
-% temp(:,:,i) = F.spectemp_mod;
-
-%%
+[F, P] = getFeatures(folder_sound, opt);
+% =====================
+% load a single sound directly
 Sd.SoundName = 'PinkNoise_dsp.wav'; 
 folder_sound = cd;
 [Sd.wav,Sd.fs] = audioread(fullfile(folder_sound, Sd.SoundName));
-opt.plotON = 1;
-opt.savefigON = 0;
-opt.saveON = 0;
-opt.save_filename = 'D:\=code=\Sound_analysis\F_yg_marm4';
-opt.windur = 0.0025;
-opt.cochmode = 'ERB'; % log or linear, or ERB scale
-F = getFeatures_singlefile(Sd, opt);
+F = getFeatures(Sd, opt);
+% temp(:,:,i) = F.spectemp_mod;
+
 %% plot the spectrotemporal modulation for sounds
 k = 39; 
 figure,imagesc(flipud(F.spectemp_mod(:,:,k)))
@@ -40,7 +35,7 @@ F.max_tempmod = F.temp_mod_rates(ind);
 F.max_specmod = F.spec_mod_rates(ind);
 
 % weighted sum
-F.best_freq = sum(repmat(F.cf_log,1,165).*F.coch_env,1)./sum(F.coch_env,1);
+F.best_freq = sum(repmat(F.cf_log',1,165).*F.coch_env,1)./sum(F.coch_env,1);
 profile_temp = squeeze(mean(F.spectemp_mod,1));
 profile_spec = squeeze(mean(F.spectemp_mod,2));
 % profile_temp = squeeze(mean(F.temp_mod,2));
@@ -87,6 +82,14 @@ ylabel('Spec. Mod. (cyc/oct)'); xlabel('Temp. Mod. (Hz)');
 for i = 1:length(x)
     [~,idx(i)] = min(dist([F.best_temp; F.best_spec]', [x(i); y(i)]));
 end
+
+Y_freq = F.F_mat(1 : F.nFreq,:)';
+Y_temp = F.F_mat(F.nFreq+1 : F.nFreq+F.nTemp,:)';
+Y_spec = F.F_mat(F.nFreq+F.nTemp+1 : F.nFreq+F.nTemp+F.nSpec,:)';
+Y_mod = F.F_mat(F.nFreq+F.nTemp+F.nSpec+1 : F.nFreq+F.nTemp+F.nSpec+F.nSpectemp,:)';
+Y = [Y_freq, Y_temp, Y_spec];
+figure, imagesc(corrcoef(Y)), axis image, colorbar
+
 %% histogram of the feature distribution
 Feature = F.Feat.FreqPower;
 figure,

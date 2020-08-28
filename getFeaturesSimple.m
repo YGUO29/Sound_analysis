@@ -5,14 +5,25 @@
 % opt.save_filename = 'D:\=code=\Sound_analysis\F_test';
 % opt.windur = 0.0025;
 % opt.cochmode = 'ERB'; % log or linear, or ERB scale
-function F = getFeaturesSimple(folder_sound, opt)
-%% set sound list to be analyzed
-list = dir(fullfile(folder_sound,'*.wav'));
-names_sound = natsortfiles({list.name})';
-if isempty(opt.iSound)
-    iSound = 1:length(list);
+function F = getFeaturesSimple(varargin)
+
+if ischar(varargin{1}) % input a folder with sounds
+    folder_sound = varargin{1};
+    opt = varargin{2};
+    
+    % set sound list to be analyzed
+    list = dir(fullfile(folder_sound,'*.wav'));
+    names_sound = natsortfiles({list.name})';
+    if isempty(opt.iSound)
+        iSound = 1:length(list);
+    else
+        iSound = opt.iSound;
+    end
+elseif isstruct(varargin{1}) % input a single sound
+    Sd = varargin{1};
+    opt = varargin{2};
+    iSound = 1;
 else
-    iSound = opt.iSound;
 end
 %% setup spectrao-temporal modulation analysis
 addpath(genpath('D:\=code=\McdermottLab\toolbox_spectrotemporal-synthesis-v2-master'))
@@ -24,33 +35,37 @@ F.temp_mod_rates_full = [-fliplr(P.temp_mod_rates), P.temp_mod_rates];
 F.mean_power = []; 
 
 for k = 1:length(iSound)
-
-    Sd.SoundName = names_sound{iSound(k)};
-    filename = fullfile(folder_sound,Sd.SoundName);
-    [Sd.wav,Sd.fs] = audioread(filename);
-    
-    % ======= cochleogram =======
-    [~, CochEnv_ds, CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram(Sd, opt.windur, opt.cochmode,0);
-%     [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, windur,
-%     mode, plotON)
-    % ======= interpolate cochleogram to log scale on frequency ========
-    spacing = 1/24;
-    logf = 2.^(log2(min(F.cf)) : spacing : log2(Sd.fs/2));    
-    f1 = F.cf; f2 = logf';
-    n_t = size(CochEnv_ds,2); % number of time point of the cochleogram
-    CochEnv_ds_log = nan(length(f2), n_t);
-    for i = 1:n_t
-        CochEnv_ds_log(:,i) = interp1(log2(f1),CochEnv_ds(:,i), log2(f2), 'pchip', 'extrap');
+    if ischar(varargin{1}) 
+        Sd.SoundName = names_sound{iSound(k)};
+        filename = fullfile(folder_sound,Sd.SoundName);
+        [Sd.wav,Sd.fs] = audioread(filename);
     end
+   % ======= cochleogram, half cosine filter =======
+    [CochEnv_ds_log, P] = getCochleogram_halfcosine(Sd, P, 0);
     F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
+    F.cf_log = P.f;
+    F.t_ds = P.t;
+    % ======= cochleogram, gammatone filter =======
+%     [~, CochEnv_ds, CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram_gamma(Sd, opt.windur, opt.cochmode,0);
+%     % interpolate cochleogram to log scale on frequency 
+%     spacing = 1/24;
+%     logf = 2.^(log2(min(F.cf)) : spacing : log2(Sd.fs/2));    
+%     f1 = F.cf; f2 = logf';
+%     n_t = size(CochEnv_ds,2); % number of time point of the cochleogram
+%     CochEnv_ds_log = nan(length(f2), n_t);
+%     for i = 1:n_t
+%         CochEnv_ds_log(:,i) = interp1(log2(f1),CochEnv_ds(:,i), log2(f2), 'pchip', 'extrap');
+%     end
+%     F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
+%     F.cf_log = f2;
     % ===================================================================
-    F.cf_log = f2;
+    
     % figure1, cochleargram, downsampled, log scale
     if opt.plotON 
-        f = figure; 
+%         f = figure; 
         size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
        
-        subplot(2,3,1)
+        subplot(opt.nRow, opt.nCol, opt.nCol*(opt.iRow-1)+1)
         imagesc(CochEnv_ds_log),axis('xy'), colorbar
         set(gca, 'FontSize', 20);
             freqs   = floor([440*2.^([0:5]), max(F.cf_log)]./10).*10; % the index of 10
@@ -123,21 +138,21 @@ for k = 1:length(iSound)
     end
     % ======= ========================== =======
     if opt.plotON   
-        % spectral profile
-        subplot(2,3,2)
+        subplot(opt.nRow, opt.nCol, opt.nCol*(opt.iRow-1)+2)        
+       % spectral profile
         semilogy(F.coch_env(:,k), F.cf_log, 'LineWidth',3), 
         xlim([min(F.coch_env(:,k)), max(F.coch_env(:,k))])
-        ylim([min(F.cf), max(F.cf)])
+        ylim([min(F.cf_log), max(F.cf_log)])
         set(gca, 'FontSize', 20);
         xlabel('Mean amplitude')
         ylabel('Cochlear channels (Hz)')
         title('Cochleagram envolope');
         
         % plot temporal modulation
-        subplot(2,3,3)
+        subplot(opt.nRow, opt.nCol, opt.nCol*(opt.iRow-1)+3)        
         imagesc(F.temp_mod(:,:,k)'), axis('xy'), colorbar
         temp_mod_rates_without_DC = P.temp_mod_rates(P.temp_mod_rates>0);
-        freqs_to_plot = [100 400 800 1600 3200 6400];
+        freqs_to_plot = [400 800 1600 3200 6400];
         fticks = floor(interp1(P.f, 1:1:length(P.f), freqs_to_plot));
         set(gca, 'YTick', fticks, 'YTickLabel', (freqs_to_plot)/1000);
         set(gca, 'XTick', [2,4,6,8], 'XTickLabel', round(temp_mod_rates_without_DC([2,4,6,8])))
@@ -147,9 +162,9 @@ for k = 1:length(iSound)
         title('Temporal modulation');
 
         % plot spectral modulation
-        subplot(2,3,4)
+        subplot(opt.nRow, opt.nCol, opt.nCol*(opt.iRow-1)+4)        
         imagesc(F.spec_mod(:,:,k)'), axis('xy'), colorbar
-        freqs_to_plot = [100 400 800 1600 3200 6400];
+        freqs_to_plot = [400 800 1600 3200 6400];
         fticks = floor(interp1(P.f, 1:1:length(P.f), freqs_to_plot));
         set(gca, 'YTick', fticks, 'YTickLabel', (freqs_to_plot)/1000);
         set(gca, 'XTick', [2,4,6], 'XTickLabel', P.spec_mod_rates([2,4,6]))
@@ -159,7 +174,7 @@ for k = 1:length(iSound)
         title('Spectral modulation');
          
         % plot spectrotemporal modulation for averaged frequency
-        subplot(2,3,5)
+        subplot(opt.nRow, opt.nCol, opt.nCol*(opt.iRow-1)+5)        
         imagesc(flipud(X)); colorbar
         spec_mod_rates_flip = fliplr(P.spec_mod_rates);
         temp_mod_rates_neg_pos = [-fliplr(temp_mod_rates_without_DC), temp_mod_rates_without_DC];
@@ -169,43 +184,10 @@ for k = 1:length(iSound)
         ylabel('Spectral scale (cyc/oct)');
         xlabel('Temporal rate (Hz)');
         title('Spectrotemporal modulation (averaged across cf)');
-        
-        % plot spectrotemporal modulation for averaged frequency
-        subplot(2,3,6)
-        imagesc(flipud(Y)); colorbar
-        spec_mod_rates_flip = fliplr(P.spec_mod_rates);
-        temp_mod_rates_neg_pos = [-fliplr(temp_mod_rates_without_DC), temp_mod_rates_without_DC];
-        set(gca, 'YTick', [1, 3, 5], 'YTickLabel', spec_mod_rates_flip([1 3 5]));
-        set(gca, 'XTick', [3, 7, 12, 16], 'XTickLabel', temp_mod_rates_neg_pos([3, 7, 12, 16]))
-        set(gca, 'FontSize', 20);
-        ylabel('Spectral scale (cyc/oct)');
-        xlabel('Temporal rate (Hz)');
-        title('Spectrotemporal modulation (weighted average)');
-         % plot spectrotemporal modulation for a given audio frequency
-         
-         
-%         subplot(2,3,6)
-%         [~,xi] = max(abs(F.coch_env(:,k)));
-%         audiofreq = F.cf(xi);
-%         X = cat(2, fliplr(spectemp_mod(:,:,2,xi)), spectemp_mod(:,:,1,xi));
-%         imagesc(flipud(X)); colorbar
-%         spec_mod_rates_flip = fliplr(P.spec_mod_rates);
-%         temp_mod_rates_neg_pos = [-fliplr(temp_mod_rates_without_DC), temp_mod_rates_without_DC];
-%         set(gca, 'YTick', [1, 3, 5], 'YTickLabel', spec_mod_rates_flip([1 3 5]));
-%         set(gca, 'XTick', [3, 7, 12, 16], 'XTickLabel', temp_mod_rates_neg_pos([3, 7, 12, 16]))
-%         set(gca, 'FontSize', 20);
-%         ylabel('Spectral scale (cyc/oct)');
-%         xlabel('Temporal rate (Hz)');
-%         title(['Spectrotemporal modulation ( cf = ',num2str(audiofreq),' Hz)']);
     end
-    
-    if opt.savefigON
-    saveas(f,['D:\=data=\Sound\Spectrotemporal modulation\figure_NatSoundFeatures_YG_marm4\features_',num2str(k),'_',Sd.SoundName,'.png'])
-    close(f)
-    end
-    k
+   
 end
-F = getFeatureMatrix(F);
+% F = getFeatureMatrix(F);
 
 if opt.saveON
     save(opt.save_filename, 'F')

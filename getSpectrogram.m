@@ -41,10 +41,11 @@ if plotON
 %     figure;
     imagesc(ftx.TimeAx, ftx.FreqAx, ftx.ftyydB); % Plot a 3D color plot
     axis('xy') % Put the origin at the lower left
-    xlabel('Time, s.','fontsize',10); ylabel('Frequency, kHz','fontsize',10); colorbar % Make it pretty 
+    xlabel('Time, s.'); ylabel('Frequency, kHz'); colorbar % Make it pretty 
+%     xlabel('Time, s.','fontsize',10); ylabel('Frequency, kHz','fontsize',10); colorbar % Make it pretty 
     av = axis; axis([av(1:2), 0 ftx.maxfreq]); % Limit the ordinate frequency
     %====== define labels and title =======
-    set(gca,'ytick',[4,7,14,21],'fontsize',10)
+    set(gca,'ytick',[4,7,14,21])
 %     title(['Spectrogram, ',strrep(S.SoundName, '_', '-')],'fontsize',10)
 end
 

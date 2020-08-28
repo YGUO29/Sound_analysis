@@ -1,4 +1,4 @@
-function [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, windur, mode, plotON)
+function [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram_gamma(Sd, windur, mode, plotON)
 % Reference: Slaney 1993 (Patterson-Holdsworth auditory filter bank, 1992)
 % Given a waveform and SR, plot ERB gammatonegram based on:
 % Determine the Equivalent Rectangular Bandwidths of the Filter Bank (in Hz)
@@ -8,6 +8,8 @@ function [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, windur, mod
 lengthwindow = round(Sd.fs*windur);
 ERB_freq_Raw =  [  250     500     1000    7000    16000];
 ERB_raw =       [  90.97   126.85  180.51  460.83  2282.71];
+% ERB_raw =       [  90.97   126.85  180.51  460.83  1000]; % fake, only for testing
+
 
 if strcmp(mode,'log') % frequency spacing is 1/24 octave
 %     cf = logspace(log10(windur/2),log10(S.fs/2),length(FreqAx)); % log scale
