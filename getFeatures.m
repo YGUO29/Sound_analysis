@@ -28,7 +28,7 @@ end
 %% setup spectrao-temporal modulation analysis
 addpath(genpath('D:\=code=\McdermottLab\toolbox_spectrotemporal-synthesis-v2-master'))
 % load('parameters_PLoSBio2018.mat', 'P');
-load('SpecTempParameters_Yueqi.mat', 'P');
+load('D:\=data=\SpecTempParameters_Yueqi.mat', 'P');
 
 F.temp_mod_rates = P.temp_mod_rates;
 F.spec_mod_rates = P.spec_mod_rates;
