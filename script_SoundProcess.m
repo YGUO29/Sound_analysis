@@ -53,9 +53,7 @@ if procON
         f1 = figurex([532         592        1827         746]);
     end
     switch proc_method
-        case 'filter'
-        % =========== RAMP & filter ================
-
+        case 'filter' % RAMP and filter
         %     d = designfilt('bandpassiir',...
         %         'FilterOrder', 4,...
         %         'PassbandFrequency1', 3e3,...
@@ -69,8 +67,10 @@ if procON
         %     newSd.wav = filtfilt(d,Sd.wav); 
             newSd.wav = Sd.wav;
             newSd.fs = Sd.fs;
+            % add ramp at beginning (linear 0.1s)
             newSd.wav(1:round(newSd.fs*0.1))...
                 = newSd.wav(1:round(newSd.fs*0.1)).*linspace(0, 1, round(newSd.fs*0.1))';
+            % add ramp at the end (linear 0.1s)
             newSd.wav(end-round(newSd.fs*0.1)+1:end)...
                 = newSd.wav(end-round(newSd.fs*0.1)+1:end).*linspace(1, 0, round(newSd.fs*0.1))';
         case 'pad'

@@ -1,0 +1,13 @@
+% resample in batch
+[F.FileName, F.PathName, F.FilterIndex] = uigetfile(...
+    'D:\=sounds=\Voc_jambalaya\Natural with Voc\*.wav',...
+    'Select ".wav" files to capsule',...
+    'MultiSelect',              'On');
+F.FSnew = 100000;
+%%
+for  i = 1: length(F.FileName)
+    [F.wav, F.FS] = audioread([F.PathName F.FileName{i}]);
+    F.wav = resample(F.wav,F.FSnew,F.FS);
+    audiowrite(['D:\=sounds=\Voc_jambalaya\Natural with Voc\',F.FileName{i},'_RS.wav'],...
+    F.wav,	F.FSnew);
+end

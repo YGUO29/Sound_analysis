@@ -1,4 +1,4 @@
-%Generate DMR
+% Generate DMR (SM and TM rates are not random, defined by S.sm and S.tm)
 %   The DMR spectrotemporal envelope is expressed as 
 %
 %      S(t,x) = M/2 * sin( 2 * pi(omega of t + Omega of x) + Phase phi of t)
