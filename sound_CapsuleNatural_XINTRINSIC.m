@@ -34,11 +34,11 @@ disp(['sound capsule is about to start on ' ...
 % S.D.Session.NumTrlV =       1;
 
 % 2020/09/09:
-% for natural sounds + vocalizations: normalized to std = 0.01 (power =
-% 1e-4), 40dB down. 
+% for natural sounds + vocalizations: normalized to std = 0.0125 (power =
+% 1e-4), 38dB down. 
 % for a pure tone sin(wt) the power is 1/2, 3dB down.
-% natural sounds already have 5e3 power attenuation (log10(5e3) = 3.699)
-S.D.Level.att =             0; % setting att = 0, actual sound level = 63dB
+% by setting att = 0, actual attenuation = 38-3 = 35dB
+S.D.Level.att =             0; 
 S.D.Trial.Duration =        20;
 S.D.Trial.PreStimTime =     2;
 S.D.Trial.Repeat =          1;
@@ -141,8 +141,8 @@ figure;
 plot(S.T.Sound.Totaluint16);
 drawnow
 
-S.D.Session.Title = ['Sound_', ...
-    'NatVoc_4Reps_180Sounds_(2.0pre_in_20.0)s_37dBatt',...    
+S.D.Session.Title = ['D:\SynologyDrive\=sounds=\Natural sound\Sound_', ...
+    'RS_NatVoc_4Reps_',...    
     sprintf('%d',   S.D.Trial.NumberTotal),     'sounds_(',...
     sprintf('%2.1f',S.D.Trial.PreStimTime),     'pre_in_',...
     sprintf('%2.1f',S.D.Trial.Duration),        ')s_',...

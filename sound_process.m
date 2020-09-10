@@ -48,6 +48,8 @@ for i = 1:length(list)
     [Sd.wav, Sd.fs] = audioread(list(i).name);
     Sd.wav = resample(Sd.wav, fs, Sd.fs);
     Sd.fs = fs; 
+    % maximize waveform to [-1 1]
+    Sd.wav = Sd.wav./max(abs(Sd.wav));
     % get information
     S(i).soundname = list(i).name;
     S(i).dur = length(Sd.wav)./Sd.fs; % duration in seconds
@@ -193,7 +195,7 @@ end
 % close(fwait)
 
 end
-%% for non-vocalizations: get statistics
+% for non-vocalizations: get statistics
 dur_mat = cell2mat({S(:).dur});
 std_mat = cell2mat({S(:).std});
 
@@ -203,19 +205,25 @@ if ~exist(savefilepath, 'dir')
     mkdir(savefilepath)
 end
 power_min = min(cell2mat({S.std})); % min of power
-power_target = 0.01;
+power_target = power_min;
 fwait = waitbar(0,'Started getting calls ...');
 
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
+    % resample
     [Sd.wav, Sd.fs] = audioread(list(i).name);
+    Sd.wav = resample(Sd.wav, fs, Sd.fs);
+    Sd.fs = fs; 
+    % maximize waveform to [-1 1]
+    Sd.wav = Sd.wav./max(abs(Sd.wav));
+    % normalize by power
     newSd.wav = Sd.wav.*(power_target/S(i).std);
     newSd.fs = Sd.fs;
     S(i).std_norm =  std(newSd.wav);
     % change name if necessary
     if contains(list(i).name,'stim')
     else
-        list(i).name = ['stim0_', list(i).name];
+        list(i).name = ['stim0_voc_', list(i).name];
     end
     audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
     

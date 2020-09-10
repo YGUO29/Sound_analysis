@@ -44,7 +44,7 @@ S = struct;
 % for i = 50
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
-
+    % resample and 
     [Sd.wav, Sd.fs] = audioread(list(i).name);
     Sd.wav = resample(Sd.wav, fs, Sd.fs);
     Sd.fs = fs; 
@@ -193,6 +193,9 @@ end
 % close(fwait)
 
 end
+%% for non-vocalizations: get statistics
+dur_mat = cell2mat({S(:).dur});
+std_mat = cell2mat({S(:).std});
 
 %% normalize sound level 
 savefilepath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm';
@@ -224,9 +227,8 @@ subplot(2,1,2)
 plot(cell2mat({S.std_norm})); title('std after normalization')
 
 
-%% get statistics of original vocalizations
+%% for vocalizations: get statistics of original vocalizations
 dur_mat = cell2mat({S(:).dur});
-std_mat =
 subid_mat = cell2mat({S(:).subid});
 
 dur = cell(1,6);
