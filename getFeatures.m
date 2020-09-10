@@ -26,9 +26,9 @@ elseif isstruct(varargin{1}) % input a single sound
 else
 end
 %% setup spectrao-temporal modulation analysis
-addpath(genpath('D:\=code=\McdermottLab\toolbox_spectrotemporal-synthesis-v2-master'))
+addpath(genpath('D:\SynologyDrive\=code=\McdermottLab\toolbox_spectrotemporal-synthesis-v2-master'))
 % load('parameters_PLoSBio2018.mat', 'P');
-load('D:\=data=\SpecTempParameters_Yueqi.mat', 'P');
+load('D:\SynologyDrive\=data=\SpecTempParameters_Yueqi.mat', 'P');
 
 F.temp_mod_rates = P.temp_mod_rates;
 F.spec_mod_rates = P.spec_mod_rates;
@@ -40,9 +40,12 @@ for k = 1:length(iSound)
         Sd.SoundName = names_sound{iSound(k)};
         filename = fullfile(folder_sound,Sd.SoundName);
         [Sd.wav,Sd.fs] = audioread(filename);
+        if isfield(opt,'dur')
+            Sd.wav = Sd.wav(1:floor(Sd.fs * opt.dur));
+        end
     end
     % ======= cochleogram, half cosine filter =======
-    [CochEnv_ds_log, P] = getCochleogram_halfcosine(Sd, P, 0);
+    [CochEnv_ds_log, ~, P] = getCochleogram_halfcosine(Sd, P, 0);
     F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
     F.cf_log = P.f;
     F.t_ds = P.t;
@@ -75,7 +78,7 @@ for k = 1:length(iSound)
             set(gca,'yticklabels',arrayfun(@num2str,freqs./1000,'UniformOutput',false))
         
             ts      = [0.5,1,1.5];
-            tticks  = floor(interp1(F.t_ds, 1:1:length(F.t_ds), ts));
+            ticks  = floor(interp1(F.t_ds, 1:1:length(F.t_ds), ts));
 %             set(gca,'xtick',tticks)
 %             set(gca,'xticklabels',arrayfun(@num2str,ts,'UniformOutput',false))
         title(['Cochleagram, ',strrep(Sd.SoundName, '_', '-')])
@@ -216,7 +219,7 @@ for k = 1:length(iSound)
     end
     
     if opt.savefigON
-    saveas(f,['D:\=data=\Sound\Spectrotemporal modulation\figure_NatSoundFeatures_HalfCosine_marm_lowcut=100hz\features_',num2str(k),'_',Sd.SoundName,'.png'])
+    saveas(f,['D:\SynologyDrive\=data=\Sound\Spectrotemporal modulation\figure_NatSoundFeatures_HalfCosine_marm_lowcut=100hz_4reps\features_',num2str(k),'_',Sd.SoundName,'.png'])
     close(f)
     end
     k

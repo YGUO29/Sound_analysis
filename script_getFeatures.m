@@ -1,16 +1,17 @@
-% folder_sound = 'D:\=sounds=\Natural sound\Natural JM with Voc\';
+% folder_sound = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
 % folder_sound = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm_165';
-folder_sound = 'D:\=sounds=\Natural sound\Natural_JM original';
+folder_sound = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm';
 % temp = zeros(7, 9, 165);
-opt.iSound = 1:165;
-opt.plotON = 1;
-opt.savefigON = 1;
+opt.iSound = 1:77;
+opt.plotON = 0;
+opt.savefigON = 0;
 opt.saveON = 1;
-opt.save_filename = 'D:\=code=\Sound_analysis\F_halfcosine_marm';
+opt.save_filename = 'D:\SynologyDrive\=data=\F_halfcosine_marm_NatVoc';
 opt.windur = 0.0025;
 opt.cochmode = 'ERB'; % log or linear, or ERB scale
-[F, P] = getFeatures(folder_sound, opt);
-% =====================
+% opt.dur = min(dur_mat);
+[F_nat_voc, P] = getFeatures(folder_sound, opt);
+%% =====================
 % load a single sound directly
 Sd.SoundName = 'PinkNoise_dsp.wav'; 
 folder_sound = cd;
