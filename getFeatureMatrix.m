@@ -1,4 +1,4 @@
-function F = getFeatureMatrix(F)
+function F = getFeatureMatrix(F, C)
 F.nStim         = size(F.coch_env,2);
 F.nSpec         = size(F.spec_mod,1);
 F.nTemp         = size(F.temp_mod,1);
@@ -37,6 +37,9 @@ i = i+F.nSpectemp;
 F.F_mat(i+1:i+F.nSpectemp,:) = reshape(F.spectemp_mod_weighted, F.nSpectemp, F.nStim);
 F.table.spectemp_weighted = F.F_mat(i+1:i+F.nSpectemp,:)';
 
+if exist('C')
+    F.table.cat_number = C.category_assignments;
+end
 % F_mat rows 74~end: full spectrotemporal modulation power (including
 % negative and positive temporal rates)
 % F.F_mat(i+1:i+F.nSpectemp_full,:) = reshape(F.spectemp_mod_full, F.nSpectemp_full, F.nStim);

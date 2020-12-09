@@ -4,8 +4,8 @@ addpath(genpath(cd))
 clear all
 % where to get your sounds
 % soundpath = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
+soundpath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz';
 % soundpath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM original';
-soundpath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909';
 
 %% get information of the sounds
 addpath(genpath(soundpath))
@@ -25,8 +25,8 @@ else
     voc = 0;
 end
 %% go over all sounds
-savefilepath = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps';
-proc_method = 'MatchEnv'; 
+savefilepath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_withLZVoc_ModelMatched\norm\';
+proc_method = 'MatchSpecEnv'; 
 plot_method = 'spectrogram'; % spectrogram or cochleogram
 % filter - high pass filter at 3kHz, add ramp
 % pad - padding sounds to a certain duration
@@ -34,20 +34,27 @@ plot_method = 'spectrogram'; % spectrogram or cochleogram
 % MatchEnv - match envelope (extract envelope and apply to pink noise)
 % MatchCochEnv - match envelope of each cochleogram channel, fill in carrier with white noise
 % MatchSpecEnv - match spectrum and envelope
-fs = 100000;
+fs = 44100;
+resampleON = 0;
 procON = 0;
 plotON = 0; 
 saveON = 0;
 % close(fwait)
 fwait = waitbar(0,'Started getting calls ...');
 S = struct;
-% for i = 50
+
+f1 = figurex([532         592        1827         746]);
+% for i = 1:10
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
     % resample
     [Sd.wav, Sd.fs] = audioread(list(i).name);
-    Sd.wav = resample(Sd.wav, fs, Sd.fs);
-    Sd.fs = fs; 
+    
+    if resampleON
+        Sd.wav = resample(Sd.wav, fs, Sd.fs);
+        Sd.fs = fs; 
+    end
+    newSd = Sd;
     % maximize waveform to [-1 1]
     Sd.wav = Sd.wav./max(abs(Sd.wav));
     % get information
@@ -55,7 +62,10 @@ for i = 1:length(list)
     S(i).dur = length(Sd.wav)./Sd.fs; % duration in seconds
     S(i).fs = Sd.fs;
     S(i).std = std(Sd.wav);
-
+%     if plotON
+%         subplot(3,5,i)
+%         [~] = getSpectrogram(Sd, plotON, 0.01);
+%     end
     if voc
         session_name_temp = strsplit(list(i).name(1:end-4),'_');
         S(i).sub = session_name_temp{2};
@@ -63,9 +73,9 @@ for i = 1:length(list)
         S(i).subid = cell2mat(S(i).subid);
     end
 if procON
-    if plotON
-        f1 = figurex([532         592        1827         746]);
-    end
+%     if plotON
+%         f1 = figurex([532         592        1827         746]);
+%     end
     switch proc_method
         case 'filter' % RAMP and filter
         %     d = designfilt('bandpassiir',...
@@ -160,31 +170,30 @@ if procON
         
     end
 else % if no processing required
-    if plotON
-        if strcmp(plot_method, 'spectrogram')
-            figurex,
-            % =========== plot figures, waveform and spectrogram ================
-            subplot(1,2,1)
-            plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
-            xlim([0, S(i).dur])
-            subplot(1,2,2)
-            getSpectrogram(Sd,1,0.01);
-        elseif strcmp(plot_method, 'cochleogram')
-            figure,
-            % =========== plot figures, waveform and spectrogram ================
-            subplot(1,2,1)
-            plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
-            xlim([0, S(i).dur])
-            subplot(1,2,2)
-%             [~,~,~,~,~] = getCochleogram(Sd, 0.01, 'ERB', plotON);
-            [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, 0.005, 'ERB', plotON);
-        else
-            disp('check plot_mothod')
-        end
-        soundsc(Sd.wav,Sd.fs)
-        pause
-        
-    end
+%     if plotON
+%         if strcmp(plot_method, 'spectrogram')
+%             figurex,
+%             % =========== plot figures, waveform and spectrogram ================
+%             subplot(1,2,1)
+%             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
+%             xlim([0, S(i).dur])
+%             subplot(1,2,2)
+%             getSpectrogram(Sd,1,0.01);
+%         elseif strcmp(plot_method, 'cochleogram')
+%             figure,
+%             % =========== plot figures, waveform and spectrogram ================
+%             subplot(1,2,1)
+%             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
+%             xlim([0, S(i).dur])
+%             subplot(1,2,2)
+% %             [~,~,~,~,~] = getCochleogram(Sd, 0.01, 'ERB', plotON);
+%             [Mat_env, Mat_env_ds, MatdB, cf, t_ds] = getCochleogram(Sd, 0.005, 'ERB', plotON);
+%         else
+%             disp('check plot_mothod')
+%         end
+% %         soundsc(Sd.wav,Sd.fs)
+% %         pause
+%     end
 end    
 
 if saveON
@@ -200,20 +209,23 @@ dur_mat = cell2mat({S(:).dur});
 std_mat = cell2mat({S(:).std});
 
 %% normalize sound level 
-savefilepath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm';
+savefilepath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz\norm\';
 if ~exist(savefilepath, 'dir')
     mkdir(savefilepath)
 end
 power_min = min(cell2mat({S.std})); % min of power
 power_target = power_min;
+% power_target = 0.015;
 fwait = waitbar(0,'Started getting calls ...');
 
 for i = 1:length(list)
     waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
     % resample
     [Sd.wav, Sd.fs] = audioread(list(i).name);
-    Sd.wav = resample(Sd.wav, fs, Sd.fs);
-    Sd.fs = fs; 
+    if resampleON
+        Sd.wav = resample(Sd.wav, fs, Sd.fs);
+        Sd.fs = fs; 
+    end
     % maximize waveform to [-1 1]
     Sd.wav = Sd.wav./max(abs(Sd.wav));
     % normalize by power
@@ -221,10 +233,10 @@ for i = 1:length(list)
     newSd.fs = Sd.fs;
     S(i).std_norm =  std(newSd.wav);
     % change name if necessary
-    if contains(list(i).name,'stim')
-    else
-        list(i).name = ['stim0_voc_', list(i).name];
-    end
+%     if contains(list(i).name,'stim')
+%     else
+%         list(i).name = ['stim0_voc_', list(i).name];
+%     end
     audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
     
 end

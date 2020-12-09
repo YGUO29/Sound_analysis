@@ -18,8 +18,18 @@ data_fft = fft(data, L);
 data_fftamp = abs( data_fft/L );
 data_fftagl = angle(data_fft);
 % data_ifft = real(ifft(data_fftamp.*exp(1i.*data_fftagl)));
-env = abs(hilbert(data));
 
+% generate envelope by hilbert (do not use this for wide-band sound)
+% env = abs(hilbert(data));
+% generate envelope by low-pass filtering
+data_rec = data;
+data_rec(data<0) = -data(data<0);
+d = designfilt('lowpassiir',...
+                'FilterOrder', 3,...
+                'PassbandFrequency', 80,... % this 160Hz was used in Shannon 2001
+                'SampleRate', fs);
+% fvtool(d)
+env = filtfilt(d,data_rec); 
 
 %% generate scrambled sound
 angles = data_fftagl(2:L/2);

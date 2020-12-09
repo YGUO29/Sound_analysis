@@ -3,6 +3,7 @@
 %   S(t,x) = M/2 * sin( 2 * pi(omega of t + Omega of x) + Phase phi of t)
 
 % stimulus overall parameters
+S.plotON        = 0;
 S.fs            = 1e5; % sampling rate
 S.dur           = 2; % seconds (6s for single trials, 2s for cycle based
 S.t             = 1/S.fs: 1/S.fs :S.dur;
@@ -10,15 +11,17 @@ S.M             = 45; % modulation depth of the envolope
 
 % ===== frequency related parameters =====
 % carrier frequencies
-S.f0            = 880;    % base frequency in Hz 
+S.f0            = 440;    % base frequency in Hz 
 S.nCarriersOct  = 43;      % (43) number of carrier freqq. per octave, Escabi and Schreiner used 230 carriers over 5.32 octaves (0.5 - 20kHz)
-S.nOctaves      = 4;    % A10
+S.nOctaves      = 6;    % A10
 vCarrierFreq    = S.f0 * 2.^linspace(0, S.nOctaves, S.nCarriersOct * S.nOctaves+1)';
 vLogFreq        = log2(vCarrierFreq./S.f0);
 
 %  modulation rates
 S.fm            = [0, 1/8, 1/4, 1/2, 1, 2, 4, 8]; % # = 8
-S.tm            = [1/2, 1, 2, 4, 8, 16, 32, 64]; % # = 8
+S.tm            = [1/2, 1, 2, 4, 8, 16, 32, 64, 128]; % # = 9
+% S.fm            = [0, 1/8, 1/4]; % toy
+% S.tm            = [128]; % # toy
 S.tm            = [fliplr(-S.tm), 0, S.tm]; % all frequencies % total # = 17
 S.nFm           = length(S.fm);
 S.nTm           = length(S.tm);
@@ -36,46 +39,52 @@ S.ramp_env(ind1) = sin(2*pi/(4*S.ramp_time).*S.t(ind1));
 ind2             = length(S.ramp_env)+1-floor(S.ramp_time*S.fs):length(S.ramp_env); % downward ramping data points
 S.ramp_env(ind2) = sin(2*pi/(4*S.ramp_time).*S.t(ind1) + pi/2);
 
-figure, size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
+if S.plotON
+    figure, size_scr = get(0,'ScreenSize'); set(gcf,'position',[1 1 size_scr(3:4)])
+end
 
 for m = 1:S.nFm
     Omega   = S.fm(m);
     
     for n = 1:S.nTm
-    Phi     = S.tm(n);
-    S.wav           = zeros(size(S.t));
+        Phi     = S.tm(n);
+        S.wav           = zeros(size(S.t)); % clear S.wav before writing each sound!
 
-    for i = 1:length(vCarrierFreq)
-        x       = vLogFreq(i);
-        f       = vCarrierFreq(i);
-        phi     = vPhi(i);
-%         phi     = 0;
-        Env_db(i, :)    = (S.M/2)*sin(2*pi*Omega*x + 2*pi*Phi.*S.t); % units of dB, [-S.M/2, S.M/2]
-        Env_lin(i,:)    = 10.^((Env_db(i,:) - S.M/2) ./ 20); % convert dB to amplitude, [10^((-S.M)/20), 1]
-%         Env_lin(i,:)     = 1 + S.M*sin(2*pi*Omega*x + 2*pi*Phi.*S.t);
-        S.wav           = S.wav + Env_lin(i,:).*sin(2*pi*f.*S.t + phi);
-    end
-    S.wav = S.wav./max(abs(S.wav));
-    S.wav = S.wav.*S.ramp_env;
+        for i = 1:length(vCarrierFreq)
+            x       = vLogFreq(i);
+            f       = vCarrierFreq(i);
+            phi     = vPhi(i); % random phase
+    %         phi     = 0;
+            Env_db(i, :)    = (S.M/2)*sin(2*pi*Omega*x + 2*pi*Phi.*S.t); % units of dB, [-S.M/2, S.M/2]
+            Env_lin(i,:)    = 10.^((Env_db(i,:) - S.M/2) ./ 20); % convert dB to amplitude, [10^((-S.M)/20), 1]
+    %         Env_lin(i,:)     = 1 + S.M*sin(2*pi*Omega*x + 2*pi*Phi.*S.t);
+            S.wav           = S.wav + Env_lin(i,:).*sin(2*pi*f.*S.t + phi);
+        end
+        S.wav = S.wav./max(abs(S.wav));
+        S.wav = S.wav.*S.ramp_env;
+
+        savepath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz\';
+        if ~exist(savepath)
+            mkdir(savepath)
+        end
+
+        filename = [savepath, ...
+            'Ripple_',num2str(S.dur),'sec_', num2str(S.nCarriersOct),'carriers=A4-A10_f1=A4_SM',...
+            num2str(Omega, '%4.2f'), '_TM',num2str(Phi, '%4.2f')];
+        save([filename,'.mat'],'S');
+        audiowrite([filename,'.wav'],S.wav,S.fs);
+
+        if S.plotON
+        subplot( S.nFm, S.nTm, sub2ind([S.nTm, S.nFm], n, m) ),
+            imagesc(S.t, [], flipud(Env_db)), colormap(jet)
+            xlabel('time(s)'), ylabel('octave number')
+            title(['FM=', num2str(Omega), ', TM=',num2str(Phi)])
+            set(gca, 'Xtick', [0:0.5:S.dur]), 
+            set(gca, 'Ytick', 1:S.nCarriersOct:length(vLogFreq))
+            set(gca, 'YtickLabel',arrayfun(@num2str,flipud(vLogFreq(1:S.nCarriersOct:length(vLogFreq))),'UniformOutput',false))
+            drawnow
+        end
     
-    savepath = 'D:\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A5-A9)_F0(A5)_FM(0~8)cycpoct_TM(-64~64)Hz\';
-    if ~exist(savepath)
-        mkdir(savepath)
-    end
-    
-    filename = [savepath, ...
-        'Ripple_',num2str(S.dur),'sec_', num2str(S.nCarriersOct),'carriers=A5-A9_f1=A5_FM',...
-        num2str(Omega, '%4.2f'), '_TM',num2str(Phi, '%4.2f')];
-    save([filename,'.mat'],'S');
-    audiowrite([filename,'.wav'],S.wav,S.fs);
-    subplot( S.nFm, S.nTm, sub2ind([S.nTm, S.nFm], n, m) ),
-        imagesc(S.t, [], flipud(Env_db)), colormap(jet)
-        xlabel('time(s)'), ylabel('octave number')
-        title(['FM=', num2str(Omega), ', TM=',num2str(Phi)])
-        set(gca, 'Xtick', [0:0.5:S.dur]), 
-        set(gca, 'Ytick', 1:S.nCarriersOct:length(vLogFreq))
-        set(gca, 'YtickLabel',arrayfun(@num2str,flipud(vLogFreq(1:S.nCarriersOct:length(vLogFreq))),'UniformOutput',false))
-        drawnow
     end
 end
 

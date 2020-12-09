@@ -122,7 +122,7 @@ newdata = newdata./(max(abs(newdata)));
 % Sd.wav = newdata; Sd.fs = fs;
 % figure, getSpectrogram(Sd,1)
 % figure, plot(abs(fft(newdata)))
-newdata =  newdata.*env3;
+newdata =  newdata.*env;
 %% normalize & fourier analysis
 std_norm = min(std(data), std(newdata)); %normalize power to the lower one
 newdata = newdata.*(std_norm./std(newdata));

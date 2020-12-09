@@ -40,12 +40,29 @@ data_fftagl_new(L/2+2:end) = -flipud(angles_new); % the new angles are also symm
 
 newdata = real(ifft(data_fftamp_new.*exp(1i.*data_fftagl_new))); % imagery part is ~16 orders less than real part
 newdata = newdata./max(abs(newdata));
+
+% add zero padding to match actual length or original recording
+newdata(1:round(fs*0.1)) = 0;
+newdata(end - round(fs*0.1)+1:end) = 0;
+
+% add ramping 0.1s (when zero padding already added)
+newdata(floor(fs*0.1)+1 : round(fs*0.2))...
+    = newdata(floor(fs*0.1)+1 : round(fs*0.2)).*linspace(0, 1, round(fs*0.1))';
+newdata(end-round(fs*0.2)+1 : end-round(fs*0.1))...
+    = newdata(end-round(fs*0.2)+1 : end-round(fs*0.1)).*linspace(1, 0, round(fs*0.1))';
+
+% add ramping 0.05s(when no zero padding added)
+% newdata(1 : round(fs*0.05))...
+%     = newdata(1 : round(fs*0.05)).*linspace(0, 1, round(fs*0.05))';
+% newdata(end - round(fs*0.05) + 1 : end)...
+%     = newdata(end - round(fs*0.05) + 1 : end).*linspace(1, 0, round(fs*0.05))';
+
 % figure, plot(newdata)
 
 %% normalize & fourier analysis
-std_norm = min(std(data), std(newdata)); %normalize power to the lower one
+std_norm = std(data); %normalize power to the original sound
 newdata = newdata.*(std_norm./std(newdata));
-data = data.*(std_norm./std(data));
+% data = data.*(std_norm./std(data));
 % fourier analysis of original sound
 f                           = fs*(0:(L/2))/L;
 data_fftamp                 = data_fftamp(1:L/2+1);

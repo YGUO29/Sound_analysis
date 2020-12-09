@@ -5,7 +5,7 @@ clear all
 bnum = 21;
 
 [F.FileName, F.PathName, F.FilterIndex] = uigetfile(...
-    'D:\=sounds=\*.wav',...
+    'D:\SynologyDrive\=sounds=\*.wav',...
     'Select ".wav" files to capsule',...
     'MultiSelect',              'On');
 if F.FilterIndex == 0
@@ -33,13 +33,18 @@ disp(['sound capsule is about to start on ' ...
 % S.D.Session.NumTrlH =       15;
 % S.D.Session.NumTrlV =       1;
 
-S.D.Level.att =             40-25.39; % for vocalizations: already attenuated 25.39dB compare to pure tone
-S.D.Trial.Duration =        20;
-S.D.Trial.PreStimTime =     2;
+% for natural sounds: already attenuated 36.5dB
+% for vocalizations: already attenuated 25.39dB compare to pure tone
+
+
+
+
+S.D.Trial.Duration =        5;
+S.D.Trial.PreStimTime =     1;
 S.D.Trial.Repeat =          1;
 S.D.Trial.SR =              100000;
-S.D.Trial.Resample =        1;
-S.D.Trial.ResampleLength =  6;
+S.D.Trial.Resample =        0;
+S.D.Trial.ResampleLength =  2;
 
 S.D.Session.NumTrlH =       6;
 S.D.Session.NumTrlV =       6;
@@ -59,6 +64,7 @@ S.D.SoundT.StartSNum =      round(S.D.System.SR* S.D.Trial.PreStimTime + 1);
 S.T.Sound.Total =           zeros(1, S.D.System.SR*length(F.FileName)*S.D.Trial.Duration);
 S.T.Sound.Totaluint16 =     int16(S.T.Sound.Total'*32767);
 
+
 for  i = 1: length(F.FileName)
     
     
@@ -66,9 +72,14 @@ for  i = 1: length(F.FileName)
     S.T.NumV =              floor( (i-1)/S.D.Session.NumTrlH )+1;
     F.info =                audioinfo([F.PathName F.FileName{i}]);
     [F.wav, F.FS] =         audioread([F.PathName F.FileName{i}]);
+    S.T.Sound.Std(i) =      std(F.wav);
+    
+    % for sounds with different length, reset resamplelength
+    S.D.Trial.ResampleLength = length(F.wav)./F.FS;
+    
     if S.D.Trial.Resample
 %     F.wavRS =               resample(F.wav, S.D.System.SR, S.D.Trial.SR);
-        F.wavRS =               resample(F.wav, S.D.System.SR, F.FS);
+        F.wavRS =               resample(F.wav, S.D.System.SR, F.FS);            
     else
         F.wavRS = F.wav;
     end
@@ -91,6 +102,13 @@ for  i = 1: length(F.FileName)
     
 end
 
+% ==== attenuation ====
+S.D.Level.TargetAtt =       30; 
+S.D.Level.InherentLevel =     100 + (20*log10(mean(S.T.Sound.Std)) - 10*log10(0.5)); 
+S.D.Level.att =             S.D.Level.TargetAtt - (100 - S.D.Level.InherentLevel); 
+S.T.Trial.Att = S.D.Level.att*(ones(1, S.D.Trial.NumberTotal));
+
+% ==== trial names ==== 
 S.T.Trial.NamesAll = '';
 
 % for i = 1:length(S.T.Trial.Names)
@@ -103,7 +121,7 @@ S.T.Trial.NamesAll = '';
 % ===== for ripples =====
 for i = 1:length(S.T.Trial.Names)
     Name_parts = strsplit(S.T.Trial.Names{i},'_');
-    Name_temp = ['S', Name_parts{6}(3:end),'_T',Name_parts{7}(end-4:end)];
+    Name_temp = ['S', Name_parts{5}(3:end),'_T',Name_parts{6}(end-4:end)];
     S.T.Trial.NamesAll = [...
         S.T.Trial.NamesAll, ...
         Name_temp, ...
@@ -115,8 +133,9 @@ end
 %     Name_parts = strsplit(S.T.Trial.Names{i},'_');
 %     Name_number = ['00',Name_parts{1}(5:end)];
 %     Name_number = Name_number(end-2:end);
-%     Name_part1 = Name_parts{2}(1:3); Name_part1(1) = upper(Name_part1(1));
-%     if ~strcmp('re',Name_parts{3}(1:2)) && length(Name_parts{3}) >= 3
+%     Name_part1 = Name_parts{2}(1:2); Name_part1(1) = upper(Name_part1(1));
+% %     if ~strcmp('re',Name_parts{3}(1:2)) && length(Name_parts{3}) >= 3
+%     if length(Name_parts)>2 && length(Name_parts{3}) >= 3
 %         Name_part2 = Name_parts{3}(1:3); Name_part2(1) = upper(Name_part2(1));
 %     else
 %         Name_part2 = [];
@@ -127,18 +146,41 @@ end
 %         Name_temp, ...
 %         ' '];
 % end
-S.T.Trial.Att = S.D.Level.att*(ones(1, S.D.Trial.NumberTotal));
+% ===== for vocalization and control sounds =====
+% for i = 1:length(S.T.Trial.Names)
+%     Name_parts = strsplit(S.T.Trial.Names{i},'_');
+%     Name_part1 = [Name_parts{1}(1:3)];
+%     Name_part2 = Name_parts{2}; 
+%     Name_temp = [Name_part1, '_', Name_part2];
+%     S.T.Trial.NamesAll = [...
+%         S.T.Trial.NamesAll, ...
+%         Name_temp, ...
+%         ' '];
+% end
+
 
 figure;
 plot(S.T.Sound.Totaluint16);
 drawnow
+% for vocalizations
+% S.D.Session.Title = ['D:\SynologyDrive\=sounds=\Ripple\capsule\Sound_', ...
+%     'RS_Voc_TP_Orig_MatchSpec_',...    
+%     sprintf('%d',   S.D.Trial.NumberTotal),     'sounds_(',...
+%     sprintf('%2.1f',S.D.Trial.PreStimTime),     'pre_in_',...
+%     sprintf('%2.1f',S.D.Trial.Duration),        ')s_',...
+%     num2str(S.D.Level.InherentLevel, '%2.1f'),  'dBSPL_',...
+%     num2str(S.D.Level.TargetAtt),                  'TargetAtt'];
+%     num2str(S.T.Trial.Att(1)),                  'dBatt'];
 
-S.D.Session.Title = ['Sound_', ...
-    'Voc_4MajorTypes(6Subjects_6SampesPerSub)_21Mixed_',...    
+% for ripples
+S.D.Session.Title = ['D:\SynologyDrive\=sounds=\Ripple\capsule\Sound_', ...
+    'Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128to128)Hz_',...    
     sprintf('%d',   S.D.Trial.NumberTotal),     'sounds_(',...
     sprintf('%2.1f',S.D.Trial.PreStimTime),     'pre_in_',...
     sprintf('%2.1f',S.D.Trial.Duration),        ')s_',...
-    num2str(S.T.Trial.Att(1)),                  'dBatt'];
+    num2str(S.D.Level.InherentLevel, '%2.1f'),  'dBSPL_',...
+    num2str(S.D.Level.TargetAtt),                  'TargetAtt'];
+%     num2str(S.T.Trial.Att(1)),                  'dBatt'];
 
 % S.D.Session.Title = [F.FileName{1}(1:end-4), '_'...
 %     num2str(S.T.Trial.Att(1)),                  'dBatt'];

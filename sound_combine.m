@@ -4,12 +4,16 @@
 clear all
 % where to get your sound
 soundpath = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
+
+% if designing control trials, select a second folder containing control
+% sounds (phase scrambled sounds etc.)
+soundpath2 = '';
 % where to save your combined sound
 savepath = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\';
 addpath(genpath(soundpath))
 list = dir(fullfile(soundpath,'*.wav'));
 
-%% repeat each sound 
+%% repeat each sound to form 20s sound
 dur = 20;
 prestim = 2;
 blocksize = 2.2; % duration of sound + gap (for natural sound = 2+0.2s)
@@ -38,7 +42,7 @@ for i = 1:length(Sd)
     audiowrite([savepath, list(i).name(1:end-4), '_4reps.wav'], newSd.wav, newSd.fs);
 end
 
-%% repeat each sound 
+%% repeat each sound 4 times, each block 2.2s (sound dur + post-gap)
 dur = 8.8;
 prestim = 0;
 blocksize = 2.2; % duration of sound + gap (for natural sound = 2+0.2s)
@@ -93,7 +97,7 @@ for i = 1:2
     Sd(i).fs = newSd.fs;
     Sd(i).dur = length(Sd(i).wav)./ Sd(i).fs;
 end
-%%
+%% with / without noise control
 % without noise
 temp_wav = Sd(1).wav;
 gap = 0;
@@ -123,6 +127,4 @@ getSpectrogram(newSd,1,0.01)
 %% save
 newSd.wav = newSd.wav./max(abs(newSd.wav));
 audiowrite([savepath, '\', 'Combined\', 'Exp1_',type,'_Denoise(10)+Noisy(10)_20s.wav'], newSd.wav, newSd.fs)
-
-
 

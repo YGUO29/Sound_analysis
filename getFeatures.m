@@ -40,6 +40,7 @@ for k = 1:length(iSound)
         Sd.SoundName = names_sound{iSound(k)};
         filename = fullfile(folder_sound,Sd.SoundName);
         [Sd.wav,Sd.fs] = audioread(filename);
+        P.audio_sr = Sd.fs; % watch out for fs!!!
         if isfield(opt,'dur')
             Sd.wav = Sd.wav(1:floor(Sd.fs * opt.dur));
         end
@@ -219,7 +220,8 @@ for k = 1:length(iSound)
     end
     
     if opt.savefigON
-    saveas(f,['D:\SynologyDrive\=data=\Sound\Spectrotemporal modulation\figure_NatSoundFeatures_HalfCosine_marm_lowcut=100hz_4reps\features_',num2str(k),'_',Sd.SoundName,'.png'])
+%     saveas(f,[opt.save_figurepath, 'features_',num2str(k),'_',Sd.SoundName,'.png'])
+        saveas(f,[opt.save_figurepath, '_',Sd.SoundName,'.png'])
     close(f)
     end
     k

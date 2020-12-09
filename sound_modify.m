@@ -1,4 +1,6 @@
-% sound modification
+% sound modification (add silent periods to match real experiments, to be
+% combined with recording videos)
+
 folder_sound    = 'D:\=code=\McdermottLab\sound_natural\';
 folder_save     = 'D:\=code=\McdermottLab\sound_natural\modified';
 % folder_sound = 'D:\=sounds=\Voc_jambalaya\Natural with Voc\';

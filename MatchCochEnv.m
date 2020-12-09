@@ -18,23 +18,32 @@ data_fft = fft(data, L);
 data_fftamp = abs( data_fft/L );
 data_fftagl = angle(data_fft);
 env = abs(hilbert(data));
+
 %% cochleogram sum - filter white noise first, then multiply
-load('SpecTempParameters_Yueqi.mat')
+% get cochleogram of current sound
+load('D:\SynologyDrive\=data=\SpecTempParameters_Yueqi.mat')
 % figurex;
+P.audio_sr = Sd.fs;
 [coch_sound_ds, coch_sound, P] = getCochleogram_halfcosine(Sd, P, 0); % #channels * #timepoints
+
 % generate new carrier (white noise went through cochlea channels)
 Sd_noise.wav = 2.*(rand(length(data),1) - 1/2);
 Sd_noise.fs = fs;
 [coch_noise_ds, coch_noise, P] = getCochleogram_halfcosine(Sd_noise, P, 0); % #channels * #timepoints
 
+% generate sound with original cochleogram envelope + filtered noise as
+% carriers
 tt = 1/P.env_sr: 1/1/P.env_sr : length(data)/Sd.fs;
+% CochNoise for the spectrogram of final sound
 CochNoise = zeros(length(t),size(coch_sound_ds,1));
 for i = 1:length(P.f)
+    % de-compression
     env = coch_sound_ds(i,:).^(1/P.compression_factor);
 %     env = Mat_env_ds(i,:);
     if length(tt) ~= length(env)
         tt = [0, tt];
     end
+    % resample timepoints to match original sound (from env_sr to Sd.fs)
     tsin = timeseries(env, tt);
     tsout = resample(tsin, t);
     env = squeeze(tsout.Data);

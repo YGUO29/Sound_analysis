@@ -1,16 +1,43 @@
 % folder_sound = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
 % folder_sound = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm_165';
-folder_sound = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm';
+folder_sound = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm\original_fs\';
 % temp = zeros(7, 9, 165);
-opt.iSound = 1:77;
-opt.plotON = 0;
-opt.savefigON = 0;
+opt.iSound = 1:180;
+opt.plotON = 1;
+opt.savefigON = 1;
 opt.saveON = 1;
-opt.save_filename = 'D:\SynologyDrive\=data=\F_halfcosine_marm_NatVoc';
+opt.save_filename = 'D:\SynologyDrive\=data=\F_halfcosine_marm_NatVoc_4reps';
+opt.save_figurepath = 'D:\SynologyDrive\=data=\Sound\Spectrotemporal modulation\figure_NatVocSoundFeatures_HalfCosine_marm_lowcut=100hz_4reps\';
 opt.windur = 0.0025;
 opt.cochmode = 'ERB'; % log or linear, or ERB scale
 % opt.dur = min(dur_mat);
 [F_nat_voc, P] = getFeatures(folder_sound, opt);
+
+%% plot average coch_env for each category
+cochenv_cat = cell(1, length(F.C.category_labels)); % group cochlea envelopes by sound category
+cochenv_weight = zeros(1, F.nStim); % weighted average of spectrums
+cochenv_mean = zeros(size(F.coch_env, 1), length(F.C.category_labels));
+for i = 1:F.nStim
+    cochenv_cat{F.C.category_assignments(i)} = [cochenv_cat{F.C.category_assignments(i)}, F.coch_env(:, i)];
+    cochenv_weight(i) = sum(F.cf_log'.*F.coch_env(:,i))./sum(F.coch_env(:,i));
+end
+
+for i = 1:length(F.C.category_labels)
+    cochenv_mean(:,i) = mean(cochenv_cat{i}, 2);
+end
+    
+figurex; 
+plot(cochenv_mean)
+legend(F.C.category_labels)
+% sort weighted spectrum from high to low
+[~, ind] = sort(cochenv_weight, 'descend');
+newlist = list(ind);
+
+% plot 15 voc and 15 natural sounds with highest weighted mean of sectrum
+figurex;
+plot(cochenv_mean(:, end)), hold on
+plot(mean( F.coch_env(:, ind(16:30)), 2))
+legend({'15 voc', '15 nat w/ hiest center of mass'})
 %% =====================
 % load a single sound directly
 Sd.SoundName = 'PinkNoise_dsp.wav'; 
