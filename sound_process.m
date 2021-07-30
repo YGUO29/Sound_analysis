@@ -1,17 +1,19 @@
 %% batch process sounds in a folder
 %% choose folder 
 addpath(genpath(cd))
-clear all
+% clear all
+soundpath = uigetdir('D:\SynologyDrive\=sounds=\', 'select folder to process');
 % where to get your sounds
-% soundpath = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
-soundpath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz';
-% soundpath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM original';
+% soundpath = 'D:\SynologyDrive\=sounds=\Vocalization\temp_for capsule\';
+% soundpath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz';
+% soundpath = 'D:\SynologyDrive\=sounds=\Vocalization\temp_for capsule\AllMajor_Orig_norm';
 
-%% get information of the sounds
+% ======== get information of the sounds ===========
 addpath(genpath(soundpath))
 % get the info list, and sort the names in natural order (same as order in
 % the folder)
 list = dir(fullfile(soundpath,'*.wav'));
+% list = dir(fullfile(soundpath,'*.m4a'));
 [names_sound, idx] = natsortfiles({list.name});
 list = list(idx);
 
@@ -24,32 +26,37 @@ if contains(soundpath, 'Vocalization')
 else
     voc = 0;
 end
-%% go over all sounds
-savefilepath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_withLZVoc_ModelMatched\norm\';
-proc_method = 'MatchSpecEnv'; 
+voc = 0;
+% ======= go over all sounds ===================
 plot_method = 'spectrogram'; % spectrogram or cochleogram
+proc_method = 'ramp'; 
 % filter - high pass filter at 3kHz, add ramp
 % pad - padding sounds to a certain duration
-% MatchSpe///c - match spectrum (phase scramble)
+% ramp - ramp at the start & end of the sound
+% Reverse - reverse the sound temporally 
+% MatchSpe - match spectrum (phase scramble)
 % MatchEnv - match envelope (extract envelope and apply to pink noise)
 % MatchCochEnv - match envelope of each cochleogram channel, fill in carrier with white noise
 % MatchSpecEnv - match spectrum and envelope
+
 fs = 44100;
 resampleON = 0;
 procON = 0;
 plotON = 0; 
 saveON = 0;
+if saveON
+    savefilepath = uigetdir('D:\SynologyDrive\=sounds=\', 'select folder to save');
+%     savefilepath = 'D:\SynologyDrive\=sounds=\Vocalization\temp_for capsule\';
+end
 % close(fwait)
 fwait = waitbar(0,'Started getting calls ...');
 S = struct;
 
-f1 = figurex([532         592        1827         746]);
 % for i = 1:10
 for i = 1:length(list)
-    waitbar(i/length(list),fwait,['Getting calls from session ',num2str(i),'/',num2str(length(list))]);
+    waitbar(i/length(list),fwait,['Getting sounds from session ',num2str(i),'/',num2str(length(list))]);
     % resample
     [Sd.wav, Sd.fs] = audioread(list(i).name);
-    
     if resampleON
         Sd.wav = resample(Sd.wav, fs, Sd.fs);
         Sd.fs = fs; 
@@ -57,6 +64,7 @@ for i = 1:length(list)
     newSd = Sd;
     % maximize waveform to [-1 1]
     Sd.wav = Sd.wav./max(abs(Sd.wav));
+
     % get information
     S(i).soundname = list(i).name;
     S(i).dur = length(Sd.wav)./Sd.fs; % duration in seconds
@@ -68,7 +76,7 @@ for i = 1:length(list)
 %     end
     if voc
         session_name_temp = strsplit(list(i).name(1:end-4),'_');
-        S(i).sub = session_name_temp{2};
+        S(i).sub = session_name_temp{3};
         S(i).subid = list_sub(find(strcmp(list_sub(:,1),S(i).sub)), 2);
         S(i).subid = cell2mat(S(i).subid);
     end
@@ -77,7 +85,7 @@ if procON
 %         f1 = figurex([532         592        1827         746]);
 %     end
     switch proc_method
-        case 'filter' % RAMP and filter
+        case 'filter' % RAMP and highpass filter (for denoising)
         %     d = designfilt('bandpassiir',...
         %         'FilterOrder', 4,...
         %         'PassbandFrequency1', 3e3,...
@@ -91,17 +99,32 @@ if procON
         %     newSd.wav = filtfilt(d,Sd.wav); 
             newSd.wav = Sd.wav;
             newSd.fs = Sd.fs;
+            ramp_time = 0.1; % second
             % add ramp at beginning (linear 0.1s)
-            newSd.wav(1:round(newSd.fs*0.1))...
-                = newSd.wav(1:round(newSd.fs*0.1)).*linspace(0, 1, round(newSd.fs*0.1))';
+            newSd.wav(1:round(newSd.fs*ramp_time))...
+                = newSd.wav(1:round(newSd.fs*ramp_time)).*linspace(0, 1, round(newSd.fs*ramp_time))';
             % add ramp at the end (linear 0.1s)
-            newSd.wav(end-round(newSd.fs*0.1)+1:end)...
-                = newSd.wav(end-round(newSd.fs*0.1)+1:end).*linspace(1, 0, round(newSd.fs*0.1))';
+            newSd.wav(end-round(newSd.fs*ramp_time)+1:end)...
+                = newSd.wav(end-round(newSd.fs*ramp_time)+1:end).*linspace(1, 0, round(newSd.fs*ramp_time))';
         case 'pad'
             newSd = Sd;
             newSd.wav = zeros(ceil(max(dur_mat).*Sd.fs),1);
             newSd.wav(1:length(Sd.wav)) = Sd.wav;
             S(i).spectrogram = getSpectrogram(newSd,0,0.01);
+        case 'ramp'
+            ramp_time = 0.1; % second
+            newSd = Sd;
+            newSd.wav = Sd.wav(1:floor(2*fs),1);
+
+             % add ramp at beginning (linear 0.1s)
+            newSd.wav(1:round(newSd.fs*ramp_time))...
+                = newSd.wav(1:round(newSd.fs*ramp_time)).*linspace(0, 1, round(newSd.fs*ramp_time))';
+            % add ramp at the end (linear 0.1s)
+            newSd.wav(end-round(newSd.fs*ramp_time)+1:end)...
+                = newSd.wav(end-round(newSd.fs*ramp_time)+1:end).*linspace(1, 0, round(newSd.fs*ramp_time))';
+        case 'Reverse'
+            newSd = Sd;
+            newSd.wav = Sd.wav(end:-1:1);
         case 'MatchSpec'
             newSd = Sd;
             [newSd.wav, Sd.wav] = MatchSpec(Sd, plotON);
@@ -122,7 +145,10 @@ if procON
     end
 
     if plotON
+
         if strcmp(plot_method, 'spectrogram')
+            f1 = figurex([532         592        1827         746]);
+
             % =========== plot figures, waveform and spectrogram ================
             subplot(2,3,1) % original waveform
             plot(1/Sd.fs:1/Sd.fs:S(i).dur, Sd.wav);
@@ -198,8 +224,14 @@ end
 
 if saveON
     % =========== save new audio ================
-    newSd.wav = newSd.wav./max(abs(newSd.wav));
+%     newSd.wav = Sd.wav(:,1);
+%     newSd.wav = newSd.wav./max(abs(newSd.wav));
+%     audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
+    name_parts = strsplit(list(i).name, '_');
+%     audiowrite([savefilepath, '\', proc_method, '_', strjoin(name_parts(2:end),'_')], newSd.wav, newSd.fs)
     audiowrite([savefilepath, '\', list(i).name], newSd.wav, newSd.fs)
+
+
 end    
 % close(fwait)
 
@@ -209,7 +241,7 @@ dur_mat = cell2mat({S(:).dur});
 std_mat = cell2mat({S(:).std});
 
 %% normalize sound level 
-savefilepath = 'D:\SynologyDrive\=sounds=\Ripple\Sound_Ripple_2s_43carriers(A4-A10)_F0(A4)_FM(0~8)cycpoct_TM(-128~128)Hz\norm\';
+savefilepath = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_customized\norm\';
 if ~exist(savefilepath, 'dir')
     mkdir(savefilepath)
 end

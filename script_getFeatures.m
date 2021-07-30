@@ -1,18 +1,50 @@
 % folder_sound = 'D:\SynologyDrive\=sounds=\Vocalization\LZ_selected_4reps\single rep';
 % folder_sound = 'D:\=sounds=\Vocalization\LZ_AudFilt\Norm_165';
-folder_sound = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_XINTRINSIC_withLZVoc_200909\Norm\original_fs\';
+folder_sound = 'D:\SynologyDrive\=sounds=\Natural sound\Natural_JM_original\';
 % temp = zeros(7, 9, 165);
-opt.iSound = 1:180;
-opt.plotON = 1;
-opt.savefigON = 1;
-opt.saveON = 1;
-opt.save_filename = 'D:\SynologyDrive\=data=\F_halfcosine_marm_NatVoc_4reps';
-opt.save_figurepath = 'D:\SynologyDrive\=data=\Sound\Spectrotemporal modulation\figure_NatVocSoundFeatures_HalfCosine_marm_lowcut=100hz_4reps\';
+opt.iSound = 1:165;
+opt.plotON = 0;
+opt.savefigON = 0;
+opt.saveON = 0;
+opt.save_filename = 'D:\SynologyDrive\=data=\F_halfcosine_marm_NatJM.mat';
+% opt.save_figurepath = 'D:\SynologyDrive\=data=\Sound\Spectrotemporal modulation\figure_Voc2p_PheeTwitter_HalfCosine_marm_lowcut=100hz\';
 opt.windur = 0.0025;
 opt.cochmode = 'ERB'; % log or linear, or ERB scale
 % opt.dur = min(dur_mat);
-[F_nat_voc, P] = getFeatures(folder_sound, opt);
+[F, P] = getFeatures_v2(folder_sound, opt);
+% (getFeatures_v2 saves the 4d matrix of spectrotemporal modulation with
+% frequencies)
+%% temporary = plot features
+% order: coch, spec, temp, orig
+figurex([1440          42         774         862]);
+[X,Y,Z] = meshgrid(1:F.nTemp, 1:F.nSpec, F.cf_log);
+for i = 1:165
+%     subplot(1,2,1)
+    V = squeeze(F.spectemp_mod_withfreq(:,:,:,i));
+    xslice = [];   
+    yslice = [];
+    zslice = 440.*[1 2 4 8 16 32 64];
+    h = slice(X,Y,Z,V,xslice,yslice,zslice,'nearest');
+    set(gca, 'Zscale', 'log')
 
+    set(h,'EdgeColor','none',...
+    'FaceColor','interp',...
+    'FaceAlpha','interp')
+    alpha('color')
+    alphamap('rampdown')
+    alphamap('increase',.1)
+    colormap hsv
+
+    xlabel('spectral modulation', 'Rotation', 15)
+    ylabel('temporal modulation', 'Rotation', -13)
+    zlabel('frequency (Hz)')
+    view(-45, 9.2)
+    grid on
+%     subplot(1,2,2)
+%     imagesc(flipud(F.spectemp_mod(:,:,i)))
+
+    pause
+end
 %% plot average coch_env for each category
 cochenv_cat = cell(1, length(F.C.category_labels)); % group cochlea envelopes by sound category
 cochenv_weight = zeros(1, F.nStim); % weighted average of spectrums
@@ -31,13 +63,13 @@ plot(cochenv_mean)
 legend(F.C.category_labels)
 % sort weighted spectrum from high to low
 [~, ind] = sort(cochenv_weight, 'descend');
-newlist = list(ind);
+% newlist = list(ind);
 
 % plot 15 voc and 15 natural sounds with highest weighted mean of sectrum
 figurex;
-plot(cochenv_mean(:, end)), hold on
-plot(mean( F.coch_env(:, ind(16:30)), 2))
-legend({'15 voc', '15 nat w/ hiest center of mass'})
+plot(rescale(cochenv_mean(:, end))), hold on
+plot( rescale(mean( F.coch_env(:, ind(16:30)), 2)))
+legend({'15 voc', '15 nat w/ highest center of mass'})
 %% =====================
 % load a single sound directly
 Sd.SoundName = 'PinkNoise_dsp.wav'; 
@@ -63,32 +95,35 @@ F.max_tempmod = F.temp_mod_rates(ind);
 F.max_specmod = F.spec_mod_rates(ind);
 
 % weighted sum
-F.best_freq = sum(repmat(F.cf_log',1,165).*F.coch_env,1)./sum(F.coch_env,1);
+F.best_freq = sum(repmat(F.cf_log',1,length(F.CochEnv_ds_log)).*F.coch_env,1)./sum(F.coch_env,1);
 profile_temp = squeeze(mean(F.spectemp_mod,1));
 profile_spec = squeeze(mean(F.spectemp_mod,2));
 % profile_temp = squeeze(mean(F.temp_mod,2));
 % profile_spec = squeeze(mean(F.spec_mod,2));
-F.best_temp = sum(repmat(F.temp_mod_rates(2:end)',1,165).*profile_temp,1)...
+F.best_temp = sum(repmat(F.temp_mod_rates(2:end)',1,length(F.CochEnv_ds_log)).*profile_temp,1)...
     ./sum(profile_temp,1);
-F.best_spec = sum(repmat(F.spec_mod_rates',1,165).*profile_spec,1)...
+F.best_spec = sum(repmat(F.spec_mod_rates',1,length(F.CochEnv_ds_log)).*profile_spec,1)...
     ./sum(profile_spec,1);
 
 
-%
+% mean cochleogram envelope & temporal modulation & spectral modulation
 figurex;
 subplot(1,3,1),
 % plot(F.cf',F.coch_env);set(gca, 'XScale', 'log')
 plot(F.cf_log,mean(F.coch_env,2));set(gca, 'XScale', 'log')
+title('mean cochleogram envelope')
 subplot(1,3,2),
 % plot(F.temp_mod_rates(2:end), squeeze(mean(F.temp_mod,2)))
 plot(F.temp_mod_rates(2:end), mean(squeeze(mean(F.temp_mod,2)),2))
+title('mean temporal modulation')
 set(gca, 'XScale', 'log')
 subplot(1,3,3),
 % plot(F.spec_mod_rates, squeeze(mean(F.spec_mod,2)))
 plot(F.spec_mod_rates, mean(squeeze(mean(F.spec_mod,2)),2))
+title('mean spectral modulation')
 set(gca, 'XScale', 'log')
 
-F.best_spec = sum(repmat(F.spec_mod_rates',1,165).*squeeze(mean(F.spec_mod,2)),1)...
+F.best_spec = sum(repmat(F.spec_mod_rates',1,length(F.CochEnv_ds_log)).*squeeze(mean(F.spec_mod,2)),1)...
     ./sum(squeeze(mean(F.spec_mod,2)),1);
 
 figurex;

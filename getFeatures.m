@@ -7,12 +7,28 @@
 % opt.cochmode = 'ERB'; % log or linear, or ERB scale
 function [F,P] = getFeatures(varargin)
 
+%           temp_mod_rates: [0 0.5000 1 2 4 8 16 32 64 128]
+%                 spec_mod_rates: [0 0.2500 0.5000 1 2 4 8]
+%            temp_mod_rates_full: [-128 -64 -32 -16 -8 -4 -2 -1 -0.5000 0 0 0.5000 1 2 4 8 16 32 64 128]
+%                     mean_power: []
+%                 CochEnv_ds_log: {[193×871 double]}
+%                         cf_log: [1×193 double]
+%                           t_ds: {[1×871 double]}
+%                       coch_env: [193×1 double]
+%                       temp_mod: [9×193 double]
+%                       spec_mod: [7×193 double]
+%                   spectemp_mod: [7×9 double]
+%              spectemp_mod_full: [7×18 double]
+%     spectemp_mod_weighted_full: [7×18 double]
+%          spectemp_mod_weighted: [7×9 double]
+
+
 if ischar(varargin{1}) % input a folder with sounds
     folder_sound = varargin{1};
     opt = varargin{2};
     
     % set sound list to be analyzed
-    list = dir(fullfile(folder_sound,'*.wav'));
+    list = dir(fullfile(folder_sound,'*.wav'));    
     names_sound = natsortfiles({list.name})';
     if isempty(opt.iSound)
         iSound = 1:length(list);
@@ -38,6 +54,8 @@ F.mean_power = [];
 for k = 1:length(iSound)
     if ischar(varargin{1}) 
         Sd.SoundName = names_sound{iSound(k)};
+        F.sound_names{k} = names_sound{iSound(k)};
+        
         filename = fullfile(folder_sound,Sd.SoundName);
         [Sd.wav,Sd.fs] = audioread(filename);
         P.audio_sr = Sd.fs; % watch out for fs!!!
@@ -47,9 +65,10 @@ for k = 1:length(iSound)
     end
     % ======= cochleogram, half cosine filter =======
     [CochEnv_ds_log, ~, P] = getCochleogram_halfcosine(Sd, P, 0);
-    F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
+    F.CochEnv_ds_log{k} = CochEnv_ds_log; % use cells because sounds may be different lengths 
+%     F.CochEnv_ds_log(:,:,k) = CochEnv_ds_log;
     F.cf_log = P.f;
-    F.t_ds = P.t;
+    F.t_ds{k} = P.t;
     % ======= cochleogram, gammatone filter =======
 %     [~, CochEnv_ds, CochEnv_dB, F.cf, F.t_ds]  =  getCochleogram_gamma(Sd, opt.windur, opt.cochmode,0);
 %     % interpolate cochleogram to log scale on frequency 
@@ -74,12 +93,14 @@ for k = 1:length(iSound)
         imagesc(CochEnv_ds_log),axis('xy'), colorbar
         set(gca, 'FontSize', 20);
             freqs   = floor([440*2.^([0:5]), max(F.cf_log)]./10).*10; % the index of 10
+%             freqs   = floor([440*2.^([0:4])]./10).*10; % the index of 10
+
             fticks  = floor(interp1(F.cf_log, 1:1:length(F.cf_log), freqs));
             set(gca,'ytick',fticks)
             set(gca,'yticklabels',arrayfun(@num2str,freqs./1000,'UniformOutput',false))
         
             ts      = [0.5,1,1.5];
-            ticks  = floor(interp1(F.t_ds, 1:1:length(F.t_ds), ts));
+            ticks  = floor(interp1(F.t_ds{k}, 1:1:length(F.t_ds{k}), ts));
 %             set(gca,'xtick',tticks)
 %             set(gca,'xticklabels',arrayfun(@num2str,ts,'UniformOutput',false))
         title(['Cochleagram, ',strrep(Sd.SoundName, '_', '-')])
@@ -136,11 +157,11 @@ for k = 1:length(iSound)
     % average spectrotemporal modulation power across all stimulus   
     % (added by Yueqi July, 2019)
 %     F.spectemp_mod_avg = mean(F.spectemp_mod,4);
-    if k == 1 
-        F.mean_power = F.spectemp_mod(:,:,k);
-    else
-        F.mean_power = F.mean_power.*(k-1)./k + F.spectemp_mod(:,:,k)./k;
-    end
+%     if k == 1 
+%         F.mean_power = F.spectemp_mod(:,:,k);
+%     else
+%         F.mean_power = F.mean_power.*(k-1)./k + F.spectemp_mod(:,:,k)./k;
+%     end
     % ======= ========================== =======
     if opt.plotON   
         % spectral profile
@@ -220,15 +241,23 @@ for k = 1:length(iSound)
     end
     
     if opt.savefigON
+        if ~exist(opt.save_figurepath, 'dir')
+            mkdir(opt.save_figurepath)
+        end
 %     saveas(f,[opt.save_figurepath, 'features_',num2str(k),'_',Sd.SoundName,'.png'])
         saveas(f,[opt.save_figurepath, '_',Sd.SoundName,'.png'])
     close(f)
     end
     k
 end
+
+try
 F = getFeatureMatrix(F);
+catch
+end
 
 if opt.saveON
+    
     save(opt.save_filename, 'F')
 end
 end
